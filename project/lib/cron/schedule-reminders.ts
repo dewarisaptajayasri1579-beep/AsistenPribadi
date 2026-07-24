@@ -1,5 +1,6 @@
 import { formatJakartaTime } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
+import { sendPushToUser } from "@/lib/push"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 const REMINDER_WINDOW_MINUTES = 15
@@ -20,7 +21,7 @@ export async function runScheduleReminders() {
   if (upcoming.length === 0) return
 
   const recipients = await prisma.user.findMany({
-    where: { notifyAgenda: true, phoneNumber: { not: null } },
+    where: { notifyAgenda: true },
   })
 
   if (recipients.length === 0) {
@@ -54,11 +55,17 @@ export async function runScheduleReminders() {
       .join("\n")
 
     for (const recipient of recipients) {
-      if (!recipient.phoneNumber) continue
+      if (recipient.phoneNumber) {
+        try {
+          await sendWhatsappMessage(recipient.phoneNumber, message)
+        } catch (error) {
+          console.error(`[cron] Gagal kirim reminder WA ke ${recipient.name}:`, error)
+        }
+      }
       try {
-        await sendWhatsappMessage(recipient.phoneNumber, message)
+        await sendPushToUser(recipient.id, { title: "⏰ Pengingat Agenda", body: message, url: "/jadwal" })
       } catch (error) {
-        console.error(`[cron] Gagal kirim reminder ke ${recipient.name}:`, error)
+        console.error(`[cron] Gagal kirim reminder push ke ${recipient.name}:`, error)
       }
     }
   }

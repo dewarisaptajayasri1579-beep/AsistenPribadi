@@ -1,6 +1,7 @@
 import { getWorkspaceOwner } from "@/lib/current-user"
 import { getDashboardData } from "@/lib/dashboard-queries"
 import { prisma } from "@/lib/prisma"
+import { sendPushToUser } from "@/lib/push"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 export async function runMorningBriefing() {
@@ -35,15 +36,21 @@ export async function runMorningBriefing() {
   const message = lines.join("\n")
 
   const recipients = await prisma.user.findMany({
-    where: { notifyMorningBriefing: true, phoneNumber: { not: null } },
+    where: { notifyMorningBriefing: true },
   })
 
   for (const recipient of recipients) {
-    if (!recipient.phoneNumber) continue
+    if (recipient.phoneNumber) {
+      try {
+        await sendWhatsappMessage(recipient.phoneNumber, message)
+      } catch (error) {
+        console.error(`[cron] Gagal kirim briefing pagi WA ke ${recipient.name}:`, error)
+      }
+    }
     try {
-      await sendWhatsappMessage(recipient.phoneNumber, message)
+      await sendPushToUser(recipient.id, { title: "Briefing Pagi", body: message, url: "/" })
     } catch (error) {
-      console.error(`[cron] Gagal kirim briefing pagi ke ${recipient.name}:`, error)
+      console.error(`[cron] Gagal kirim briefing pagi push ke ${recipient.name}:`, error)
     }
   }
 }

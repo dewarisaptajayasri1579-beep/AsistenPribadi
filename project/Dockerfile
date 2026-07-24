@@ -11,6 +11,12 @@ RUN corepack pnpm install --frozen-lockfile --ignore-scripts
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# NEXT_PUBLIC_* di-inline ke JS bundle saat build, jadi harus tersedia di sini
+# (bukan cuma runtime) — di Coolify, centang "Available at Buildtime" untuk var ini.
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
+
 RUN corepack pnpm exec prisma generate
 RUN corepack pnpm build
 

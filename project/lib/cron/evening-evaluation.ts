@@ -1,6 +1,7 @@
 import { getWorkspaceOwner } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
 import { getDailyReportData } from "@/lib/report-queries"
+import { sendPushToUser } from "@/lib/push"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 export async function runEveningEvaluation() {
@@ -32,15 +33,21 @@ export async function runEveningEvaluation() {
   const message = lines.join("\n")
 
   const recipients = await prisma.user.findMany({
-    where: { notifyDailyReport: true, phoneNumber: { not: null } },
+    where: { notifyDailyReport: true },
   })
 
   for (const recipient of recipients) {
-    if (!recipient.phoneNumber) continue
+    if (recipient.phoneNumber) {
+      try {
+        await sendWhatsappMessage(recipient.phoneNumber, message)
+      } catch (error) {
+        console.error(`[cron] Gagal kirim evaluasi malam WA ke ${recipient.name}:`, error)
+      }
+    }
     try {
-      await sendWhatsappMessage(recipient.phoneNumber, message)
+      await sendPushToUser(recipient.id, { title: "📋 Evaluasi Malam", body: message, url: "/laporan" })
     } catch (error) {
-      console.error(`[cron] Gagal kirim evaluasi malam ke ${recipient.name}:`, error)
+      console.error(`[cron] Gagal kirim evaluasi malam push ke ${recipient.name}:`, error)
     }
   }
 }

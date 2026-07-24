@@ -6,6 +6,7 @@ import { Bell, Bot, Save, Settings, UserRound } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { PageHeading } from "@/components/page-heading"
+import { PushNotificationCard } from "@/components/push-notification-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -152,6 +153,8 @@ export function SettingsPage({ initial }: { initial: SettingsValues }) {
               </FieldGroup>
             </CardContent>
           </Card>
+
+          <PushNotificationCard />
 
           <Card className="glass-card border-0 ring-0 lg:col-span-2">
             <CardHeader>
