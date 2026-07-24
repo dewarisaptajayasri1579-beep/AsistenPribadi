@@ -33,6 +33,15 @@ export async function runScheduleReminders() {
   }
 
   for (const schedule of upcoming) {
+    // Klaim dulu secara atomic sebelum kirim — kalau ada proses lain (mis. tabrakan
+    // rolling-deploy container lama & baru) sudah menandai duluan, count-nya 0 dan
+    // kita skip supaya tidak kirim dobel.
+    const claim = await prisma.schedule.updateMany({
+      where: { id: schedule.id, remindedAt: null },
+      data: { remindedAt: now },
+    })
+    if (claim.count === 0) continue
+
     const time = formatJakartaTime(schedule.startAt)
     const message = [
       `⏰ Pengingat Agenda`,
@@ -52,10 +61,5 @@ export async function runScheduleReminders() {
         console.error(`[cron] Gagal kirim reminder ke ${recipient.name}:`, error)
       }
     }
-
-    await prisma.schedule.update({
-      where: { id: schedule.id },
-      data: { remindedAt: now },
-    })
   }
 }
