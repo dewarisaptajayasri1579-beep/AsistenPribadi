@@ -21,6 +21,7 @@ export function AssistantPage({ userName }: AssistantPageProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "assistant", text: `Halo ${userName}, ada yang bisa saya bantu hari ini?` },
   ])
+  const [history, setHistory] = useState<unknown[]>([])
   const [pending, setPending] = useState(false)
 
   async function handleSend() {
@@ -33,11 +34,12 @@ export function AssistantPage({ userName }: AssistantPageProps) {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command }),
+        body: JSON.stringify({ command, history }),
       })
       const data = await res.json()
       const reply = res.ok ? data.reply : `Terjadi kesalahan: ${data.error ?? "tidak diketahui"}`
       setMessages((current) => [...current, { role: "assistant", text: reply, model: data.model }])
+      if (res.ok && Array.isArray(data.history)) setHistory(data.history)
     } catch {
       setMessages((current) => [...current, { role: "assistant", text: "Gagal menghubungi agent. Coba lagi." }])
     } finally {

@@ -62,6 +62,24 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "delete_schedule",
+    description: "Menghapus jadwal/meeting. Hanya panggil setelah pengguna menyetujui secara eksplisit (mis. 'ya hapus saja').",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+  },
+  {
+    name: "delete_task",
+    description: "Menghapus tugas. Hanya panggil setelah pengguna menyetujui secara eksplisit (mis. 'ya hapus saja').",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+  },
+  {
     name: "check_schedule_conflict",
     description:
       "Memeriksa apakah rentang waktu tertentu bentrok dengan jadwal yang sudah ada, TANPA membuat jadwal. Hanya untuk pertanyaan eksplisit seperti 'apakah jam segini bentrok?' — jangan panggil ini sebelum create_schedule, karena create_schedule sudah cek sendiri.",
@@ -142,6 +160,16 @@ async function completeTask(ctx: ToolContext, input: any) {
     data: { status: "done", completedAt: new Date() },
   })
   return task
+}
+
+async function deleteSchedule(ctx: ToolContext, input: any) {
+  await prisma.schedule.delete({ where: { id: input.id, userId: ctx.userId } })
+  return { deleted: true }
+}
+
+async function deleteTask(ctx: ToolContext, input: any) {
+  await prisma.task.delete({ where: { id: input.id, userId: ctx.userId } })
+  return { deleted: true }
 }
 
 function resolveEnd(startAt: string, endAt?: string) {
@@ -256,6 +284,10 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return completeTask(ctx, input)
     case "create_schedule":
       return createSchedule(ctx, input)
+    case "delete_schedule":
+      return deleteSchedule(ctx, input)
+    case "delete_task":
+      return deleteTask(ctx, input)
     case "check_schedule_conflict":
       return checkScheduleConflict(ctx, input)
     case "get_today_tasks":

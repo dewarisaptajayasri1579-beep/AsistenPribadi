@@ -20,6 +20,7 @@ export function FloatingAiAssistant() {
   const [messages, setMessages] = useState<FloatingMessage[]>([
     { role: "assistant", text: "Selamat datang. Ada yang bisa saya bantu untuk agenda hari ini?" },
   ])
+  const [history, setHistory] = useState<unknown[]>([])
 
   useEffect(() => {
     fetch("/api/me")
@@ -44,11 +45,12 @@ export function FloatingAiAssistant() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command }),
+        body: JSON.stringify({ command, history }),
       })
       const data = await res.json()
       const reply = res.ok ? data.reply : `Terjadi kesalahan: ${data.error ?? "tidak diketahui"}`
       setMessages((current) => [...current, { role: "assistant", text: reply, model: data.model }])
+      if (res.ok && Array.isArray(data.history)) setHistory(data.history)
     } catch {
       setMessages((current) => [...current, { role: "assistant", text: "Gagal menghubungi agent. Coba lagi." }])
     } finally {

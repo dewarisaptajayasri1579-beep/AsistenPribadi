@@ -37,6 +37,8 @@ function systemPrompt(assistantInstructions?: string | null): Anthropic.TextBloc
   return blocks
 }
 
+const MAX_HISTORY_MESSAGES = 16
+
 interface RunAgentParams {
   /** Pemilik data workspace — semua tool menulis/membaca tugas & jadwal di bawah id ini. */
   ownerId: string
@@ -44,13 +46,17 @@ interface RunAgentParams {
   actorId: string
   command: string
   assistantInstructions?: string | null
+  /** Riwayat percakapan sebelumnya (dari respons runAgent panggilan terakhir) — supaya pertanyaan
+   *  lanjutan seperti "ya hapus saja" tetap tahu jadwal/tugas mana yang dimaksud. */
+  history?: Anthropic.MessageParam[]
 }
 
-export async function runAgent({ ownerId, actorId, command, assistantInstructions }: RunAgentParams) {
+export async function runAgent({ ownerId, actorId, command, assistantInstructions, history }: RunAgentParams) {
   // Waktu sekarang dikirim lewat pesan user (bukan system prompt) supaya system prompt tetap
   // statis byte-per-byte dan bisa di-cache Anthropic — lihat shared/prompt-caching.md.
   const firstMessage = `Waktu sekarang: ${jakartaNowIso()} (Asia/Jakarta).\n\nPerintah: ${command}`
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: firstMessage }]
+  const trimmedHistory = (history ?? []).slice(-MAX_HISTORY_MESSAGES)
+  const messages: Anthropic.MessageParam[] = [...trimmedHistory, { role: "user", content: firstMessage }]
 
   let finalText = ""
   const startedAt = Date.now()
@@ -75,9 +81,9 @@ export async function runAgent({ ownerId, actorId, command, assistantInstruction
     const textBlocks = response.content.filter((block): block is Anthropic.TextBlock => block.type === "text")
     finalText = textBlocks.map((b) => b.text).join("\n")
 
-    if (toolUses.length === 0) break
-
     messages.push({ role: "assistant", content: response.content })
+
+    if (toolUses.length === 0) break
 
     const toolResults: Anthropic.ToolResultBlockParam[] = []
     for (const toolUse of toolUses) {
@@ -129,5 +135,5 @@ export async function runAgent({ ownerId, actorId, command, assistantInstruction
     },
   })
 
-  return { reply: finalText, model: MODEL }
+  return { reply: finalText, model: MODEL, messages }
 }
