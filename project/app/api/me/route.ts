@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server"
 
-import { getCurrentUser } from "@/lib/current-user"
+import { getApiUser } from "@/lib/current-user"
 
 export async function GET() {
-  const user = await getCurrentUser()
-  return NextResponse.json({ name: user.name })
+  const user = await getApiUser()
+  if (!user) return NextResponse.json({ error: "Belum login" }, { status: 401 })
+  return NextResponse.json({ name: user.name, role: user.role })
 }

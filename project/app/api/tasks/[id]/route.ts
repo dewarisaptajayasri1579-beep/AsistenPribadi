@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server"
 
-import { getCurrentUser } from "@/lib/current-user"
+import { getApiUser, getWorkspaceOwner } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const user = await getCurrentUser()
+  const user = await getApiUser()
+  if (!user) return NextResponse.json({ error: "Belum login" }, { status: 401 })
+
   const body = await request.json().catch(() => null)
 
   if (!body) {
@@ -23,9 +25,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data.completedAt = body.status === "done" ? new Date() : null
   }
 
+  const owner = await getWorkspaceOwner()
+
   try {
     const task = await prisma.task.update({
-      where: { id, userId: user.id },
+      where: { id, userId: owner.id },
       data,
     })
     return NextResponse.json({ task })

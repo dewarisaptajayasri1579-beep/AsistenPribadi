@@ -11,6 +11,7 @@ const PAGES_WITH_FULL_CHAT = ["/", "/assistant"]
 export function AppShell({ children }: { children: ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [userName, setUserName] = useState("")
+  const [userRole, setUserRole] = useState("")
   const pathname = usePathname()
   const hasFullChatOnPage = PAGES_WITH_FULL_CHAT.includes(pathname)
 
@@ -19,6 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.name) setUserName(data.name)
+        if (data?.role) setUserRole(data.role)
       })
       .catch(() => {})
   }, [])
@@ -30,6 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed((current) => !current)}
           userName={userName}
+          userRole={userRole}
         />
         <div className="min-w-0 flex-1 lg:py-4">{children}</div>
       </div>

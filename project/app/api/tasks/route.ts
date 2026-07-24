@@ -1,28 +1,34 @@
 import { NextResponse } from "next/server"
 
-import { getCurrentUser } from "@/lib/current-user"
+import { getApiUser, getWorkspaceOwner } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
 
 export async function GET() {
-  const user = await getCurrentUser()
+  const user = await getApiUser()
+  if (!user) return NextResponse.json({ error: "Belum login" }, { status: 401 })
+
+  const owner = await getWorkspaceOwner()
   const tasks = await prisma.task.findMany({
-    where: { userId: user.id },
+    where: { userId: owner.id },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }],
   })
   return NextResponse.json({ tasks })
 }
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser()
+  const user = await getApiUser()
+  if (!user) return NextResponse.json({ error: "Belum login" }, { status: 401 })
+
   const body = await request.json().catch(() => null)
 
   if (!body?.title || typeof body.title !== "string") {
     return NextResponse.json({ error: "title wajib diisi" }, { status: 400 })
   }
 
+  const owner = await getWorkspaceOwner()
   const task = await prisma.task.create({
     data: {
-      userId: user.id,
+      userId: owner.id,
       title: body.title,
       description: body.description,
       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,

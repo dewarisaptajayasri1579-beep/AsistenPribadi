@@ -12,6 +12,7 @@ export default async function Page() {
         name: user.name,
         role: user.role,
         email: user.email,
+        phoneNumber: user.phoneNumber ?? "",
         assistantInstructions: user.assistantInstructions ?? "",
         notifyAgenda: user.notifyAgenda,
         notifyDailyReport: user.notifyDailyReport,

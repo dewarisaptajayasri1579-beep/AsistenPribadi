@@ -37,7 +37,16 @@ function systemPrompt(assistantInstructions?: string | null): Anthropic.TextBloc
   return blocks
 }
 
-export async function runAgent(userId: string, command: string, assistantInstructions?: string | null) {
+interface RunAgentParams {
+  /** Pemilik data workspace — semua tool menulis/membaca tugas & jadwal di bawah id ini. */
+  ownerId: string
+  /** User yang sedang chat — dicatat di agent_runs & ai_usage_logs untuk audit/biaya per orang. */
+  actorId: string
+  command: string
+  assistantInstructions?: string | null
+}
+
+export async function runAgent({ ownerId, actorId, command, assistantInstructions }: RunAgentParams) {
   // Waktu sekarang dikirim lewat pesan user (bukan system prompt) supaya system prompt tetap
   // statis byte-per-byte dan bisa di-cache Anthropic — lihat shared/prompt-caching.md.
   const firstMessage = `Waktu sekarang: ${jakartaNowIso()} (Asia/Jakarta).\n\nPerintah: ${command}`
@@ -75,7 +84,7 @@ export async function runAgent(userId: string, command: string, assistantInstruc
       let resultContent: string
       let status = "success"
       try {
-        const result = await runTool(toolUse.name, toolUse.input, { userId })
+        const result = await runTool(toolUse.name, toolUse.input, { userId: ownerId })
         resultContent = JSON.stringify(result)
       } catch (error) {
         status = "error"
@@ -84,7 +93,7 @@ export async function runAgent(userId: string, command: string, assistantInstruc
 
       await prisma.agentRun.create({
         data: {
-          userId,
+          userId: actorId,
           command,
           agentAction: toolUse.name,
           result: resultContent,
@@ -107,7 +116,7 @@ export async function runAgent(userId: string, command: string, assistantInstruc
 
   await prisma.aiUsageLog.create({
     data: {
-      userId,
+      userId: actorId,
       command,
       model: MODEL,
       inputTokens: usageTotals.inputTokens,

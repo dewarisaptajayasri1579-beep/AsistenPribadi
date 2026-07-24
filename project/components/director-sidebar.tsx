@@ -1,16 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   Bot,
   CalendarDays,
   ChartNoAxesColumnIncreasing,
-  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   CircleDollarSign,
   Home,
+  LogOut,
   Settings,
 } from "lucide-react"
 
@@ -23,6 +23,7 @@ interface DirectorSidebarProps {
   collapsed: boolean
   onToggle: () => void
   userName: string
+  userRole: string
 }
 
 function initialsOf(name: string) {
@@ -59,12 +60,19 @@ function Brand({ compact = false }: { compact?: boolean }) {
   )
 }
 
-export function DirectorSidebar({ collapsed, onToggle, userName }: DirectorSidebarProps) {
+export function DirectorSidebar({ collapsed, onToggle, userName, userRole }: DirectorSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   const initials = initialsOf(userName)
 
   function isActive(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href)
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" })
+    router.push("/login")
+    router.refresh()
   }
 
   return (
@@ -158,9 +166,17 @@ export function DirectorSidebar({ collapsed, onToggle, userName }: DirectorSideb
               <>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-semibold">{userName}</p>
-                  <p className="truncate text-sm text-muted-foreground">Direktur</p>
+                  <p className="truncate text-sm text-muted-foreground">{userRole}</p>
                 </div>
-                <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleLogout}
+                  aria-label="Logout"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  <LogOut className="size-4" />
+                </Button>
               </>
             )}
           </div>

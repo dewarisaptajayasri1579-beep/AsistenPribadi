@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server"
 
-import { getCurrentUser } from "@/lib/current-user"
+import { getApiUser } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
 
 export async function GET() {
-  const user = await getCurrentUser()
+  const user = await getApiUser()
+  if (!user) return NextResponse.json({ error: "Belum login" }, { status: 401 })
+
   return NextResponse.json({
     name: user.name,
     role: user.role,
     email: user.email,
+    phoneNumber: user.phoneNumber ?? "",
     assistantInstructions: user.assistantInstructions ?? "",
     notifyAgenda: user.notifyAgenda,
     notifyDailyReport: user.notifyDailyReport,
@@ -18,7 +21,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const user = await getCurrentUser()
+  const user = await getApiUser()
+  if (!user) return NextResponse.json({ error: "Belum login" }, { status: 401 })
+
   const body = await request.json().catch(() => null)
 
   if (!body) {
@@ -29,6 +34,7 @@ export async function PATCH(request: Request) {
   if (typeof body.name === "string") data.name = body.name
   if (typeof body.role === "string") data.role = body.role
   if (typeof body.email === "string") data.email = body.email
+  if (typeof body.phoneNumber === "string") data.phoneNumber = body.phoneNumber || null
   if (typeof body.assistantInstructions === "string") data.assistantInstructions = body.assistantInstructions
   if (typeof body.notifyAgenda === "boolean") data.notifyAgenda = body.notifyAgenda
   if (typeof body.notifyDailyReport === "boolean") data.notifyDailyReport = body.notifyDailyReport

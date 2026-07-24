@@ -1,22 +1,22 @@
 import { jakartaTodayRange } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 
-export async function getAiUsageOverview(userId: string) {
+/** Ringkasan biaya AI untuk seluruh workspace (semua user yang login & chat). */
+export async function getAiUsageOverview() {
   const { start } = jakartaTodayRange()
 
   const [logs, todayAgg, allTimeAgg] = await Promise.all([
     prisma.aiUsageLog.findMany({
-      where: { userId },
       orderBy: { createdAt: "desc" },
       take: 50,
+      include: { user: { select: { name: true } } },
     }),
     prisma.aiUsageLog.aggregate({
-      where: { userId, createdAt: { gte: start } },
+      where: { createdAt: { gte: start } },
       _sum: { estimatedCostUsd: true, apiCallCount: true },
       _count: true,
     }),
     prisma.aiUsageLog.aggregate({
-      where: { userId },
       _sum: { estimatedCostUsd: true, apiCallCount: true },
       _count: true,
     }),
@@ -25,6 +25,7 @@ export async function getAiUsageOverview(userId: string) {
   return {
     logs: logs.map((log) => ({
       id: log.id,
+      userName: log.user.name,
       command: log.command,
       model: log.model,
       inputTokens: log.inputTokens,

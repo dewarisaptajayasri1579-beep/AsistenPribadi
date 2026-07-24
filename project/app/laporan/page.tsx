@@ -1,12 +1,12 @@
 import { ReportsPage } from "@/components/reports-page"
-import { getCurrentUser } from "@/lib/current-user"
+import { getWorkspaceOwner } from "@/lib/current-user"
 import { getDailyReportData } from "@/lib/report-queries"
 
 export const dynamic = "force-dynamic"
 
 export default async function Page() {
-  const user = await getCurrentUser()
-  const data = await getDailyReportData(user.id)
+  const owner = await getWorkspaceOwner()
+  const data = await getDailyReportData(owner.id)
 
   const todayLabel = new Intl.DateTimeFormat("id-ID", {
     weekday: "long",

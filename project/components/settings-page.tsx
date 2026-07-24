@@ -17,6 +17,7 @@ interface SettingsValues {
   name: string
   role: string
   email: string
+  phoneNumber: string
   assistantInstructions: string
   notifyAgenda: boolean
   notifyDailyReport: boolean
@@ -99,6 +100,18 @@ export function SettingsPage({ initial }: { initial: SettingsValues }) {
                   <FieldLabel htmlFor="email">Email</FieldLabel>
                   <Input id="email" type="email" value={values.email} onChange={(e) => update("email", e.target.value)} autoComplete="email" />
                 </Field>
+                <Field>
+                  <FieldLabel htmlFor="phone">Nomor WhatsApp</FieldLabel>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="08xxxxxxxxxx"
+                    value={values.phoneNumber}
+                    onChange={(e) => update("phoneNumber", e.target.value)}
+                    autoComplete="tel"
+                  />
+                  <FieldDescription>Wajib diisi supaya bisa menerima reminder & briefing lewat WhatsApp.</FieldDescription>
+                </Field>
               </FieldGroup>
             </CardContent>
           </Card>
@@ -107,10 +120,10 @@ export function SettingsPage({ initial }: { initial: SettingsValues }) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="size-5 text-primary" aria-hidden="true" />
-                Notifikasi
+                Notifikasi WhatsApp
               </CardTitle>
               <CardDescription>
-                Pilih pengingat yang ingin diterima. Pengiriman notifikasi belum aktif — bagian ini baru menyimpan preferensi.
+                Pilih pengingat yang ingin diterima lewat WhatsApp (nomor di atas wajib diisi).
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -118,14 +131,14 @@ export function SettingsPage({ initial }: { initial: SettingsValues }) {
                 <Field orientation="horizontal" className="rounded-xl border border-border bg-secondary/25 p-3">
                   <FieldContent>
                     <FieldLabel htmlFor="agenda-notification">Pengingat agenda</FieldLabel>
-                    <FieldDescription>Ingatkan 15 menit sebelum agenda dimulai.</FieldDescription>
+                    <FieldDescription>Kirim WhatsApp 15 menit sebelum agenda dimulai.</FieldDescription>
                   </FieldContent>
                   <Switch id="agenda-notification" checked={values.notifyAgenda} onCheckedChange={(v) => update("notifyAgenda", v)} />
                 </Field>
                 <Field orientation="horizontal" className="rounded-xl border border-border bg-secondary/25 p-3">
                   <FieldContent>
-                    <FieldLabel htmlFor="daily-report">Laporan harian</FieldLabel>
-                    <FieldDescription>Kirim ringkasan aktivitas setiap sore.</FieldDescription>
+                    <FieldLabel htmlFor="daily-report">Evaluasi malam</FieldLabel>
+                    <FieldDescription>Kirim ringkasan tugas selesai/belum jam 20:00 WIB.</FieldDescription>
                   </FieldContent>
                   <Switch id="daily-report" checked={values.notifyDailyReport} onCheckedChange={(v) => update("notifyDailyReport", v)} />
                 </Field>
@@ -166,7 +179,7 @@ export function SettingsPage({ initial }: { initial: SettingsValues }) {
                 <Field orientation="horizontal" className="rounded-xl border border-border bg-secondary/25 p-3">
                   <FieldContent>
                     <FieldLabel htmlFor="morning-briefing">Briefing pagi otomatis</FieldLabel>
-                    <FieldDescription>Tampilkan ringkasan agenda setiap pagi (belum aktif — menyimpan preferensi saja).</FieldDescription>
+                    <FieldDescription>Kirim ringkasan agenda & prioritas lewat WhatsApp jam 07:00 WIB.</FieldDescription>
                   </FieldContent>
                   <Switch id="morning-briefing" checked={values.notifyMorningBriefing} onCheckedChange={(v) => update("notifyMorningBriefing", v)} />
                 </Field>

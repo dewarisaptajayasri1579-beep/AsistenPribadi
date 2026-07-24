@@ -10,23 +10,38 @@ datasource db {
 }
 
 model User {
-  id                     String     @id @default(uuid())
+  id                     String       @id @default(uuid())
   name                   String
-  email                  String     @unique
-  timezone               String     @default("Asia/Jakarta")
-  role                   String     @default("Direktur")
-  assistantInstructions  String?    @map("assistant_instructions")
-  notifyAgenda           Boolean    @default(true) @map("notify_agenda")
-  notifyDailyReport      Boolean    @default(true) @map("notify_daily_report")
-  notifyPriorityAlert    Boolean    @default(true) @map("notify_priority_alert")
-  notifyMorningBriefing  Boolean    @default(true) @map("notify_morning_briefing")
+  email                  String       @unique
+  passwordHash           String?      @map("password_hash")
+  phoneNumber            String?      @map("phone_number")
+  isOwner                Boolean      @default(false) @map("is_owner")
+  timezone               String       @default("Asia/Jakarta")
+  role                   String       @default("Direktur")
+  assistantInstructions  String?      @map("assistant_instructions")
+  notifyAgenda           Boolean      @default(true) @map("notify_agenda")
+  notifyDailyReport      Boolean      @default(true) @map("notify_daily_report")
+  notifyPriorityAlert    Boolean      @default(true) @map("notify_priority_alert")
+  notifyMorningBriefing  Boolean      @default(true) @map("notify_morning_briefing")
+  createdAt              DateTime     @default(now()) @map("created_at")
   tasks                  Task[]
   schedules              Schedule[]
   followUps              FollowUp[]
   agentRuns              AgentRun[]
   aiUsageLogs            AiUsageLog[]
+  sessions               Session[]
 
   @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
 
 model Task {
@@ -46,15 +61,16 @@ model Task {
 }
 
 model Schedule {
-  id       String    @id @default(uuid())
-  userId   String    @map("user_id")
-  title    String
-  startAt  DateTime  @map("start_at")
-  endAt    DateTime? @map("end_at")
-  location String?
-  notes    String?
-  status   String    @default("confirmed")
-  user     User      @relation(fields: [userId], references: [id])
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  title      String
+  startAt    DateTime  @map("start_at")
+  endAt      DateTime? @map("end_at")
+  location   String?
+  notes      String?
+  status     String    @default("confirmed")
+  remindedAt DateTime? @map("reminded_at")
+  user       User      @relation(fields: [userId], references: [id])
 
   @@map("schedules")
 }

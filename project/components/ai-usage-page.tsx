@@ -60,7 +60,7 @@ export function AiUsagePage({ overview }: { overview: AiUsageOverview }) {
         <Card className="glass-card border-0 ring-0">
           <CardHeader>
             <CardTitle>Riwayat Chat</CardTitle>
-            <CardDescription>50 chat terakhir dengan AI Agent.</CardDescription>
+            <CardDescription>50 chat terakhir dengan AI Agent, dari semua user di workspace.</CardDescription>
           </CardHeader>
           <CardContent>
             {logs.length === 0 ? (
@@ -71,6 +71,7 @@ export function AiUsagePage({ overview }: { overview: AiUsageOverview }) {
                   <thead>
                     <tr className="border-b border-border text-left text-xs text-muted-foreground">
                       <th className="py-2 pr-3 font-medium">Waktu</th>
+                      <th className="py-2 pr-3 font-medium">User</th>
                       <th className="py-2 pr-3 font-medium">Model</th>
                       <th className="py-2 pr-3 font-medium">Perintah</th>
                       <th className="py-2 pr-3 font-medium">Token In/Out</th>
@@ -84,6 +85,7 @@ export function AiUsagePage({ overview }: { overview: AiUsageOverview }) {
                     {logs.map((log) => (
                       <tr key={log.id} className="border-b border-border/50 last:border-0">
                         <td className="py-2.5 pr-3 whitespace-nowrap text-muted-foreground">{formatTime(log.createdAt)}</td>
+                        <td className="py-2.5 pr-3 whitespace-nowrap text-foreground/85">{log.userName}</td>
                         <td className="py-2.5 pr-3 whitespace-nowrap">
                           <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
                             {modelLabel(log.model)}

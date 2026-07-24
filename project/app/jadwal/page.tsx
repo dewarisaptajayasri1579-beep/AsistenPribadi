@@ -1,5 +1,5 @@
 import { SchedulePage } from "@/components/schedule-page"
-import { getCurrentUser } from "@/lib/current-user"
+import { getWorkspaceOwner } from "@/lib/current-user"
 import {
   formatJakartaDateLabel,
   formatJakartaTime,
@@ -18,7 +18,7 @@ interface PageProps {
 }
 
 export default async function Page({ searchParams }: PageProps) {
-  const user = await getCurrentUser()
+  const owner = await getWorkspaceOwner()
   const params = await searchParams
   const todayIso = jakartaTodayDateIso()
   const selectedDateIso = params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : todayIso
@@ -27,11 +27,11 @@ export default async function Page({ searchParams }: PageProps) {
 
   const [daySchedules, tasks] = await Promise.all([
     prisma.schedule.findMany({
-      where: { userId: user.id, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
+      where: { userId: owner.id, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
       orderBy: { startAt: "asc" },
     }),
     prisma.task.findMany({
-      where: { userId: user.id },
+      where: { userId: owner.id },
       orderBy: [{ status: "asc" }, { dueDate: "asc" }],
     }),
   ])
