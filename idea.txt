@@ -1,0 +1,613 @@
+Aplikasi miniatur yang paling cocok untuk Anda adalah:
+
+# **Director Daily Assistant**
+
+AI Agent untuk membantu direktur mengelola jadwal, tugas prioritas, follow-up, dan laporan harian.
+
+Aplikasi ini sederhana, tetapi sudah memperlihatkan konsep AI Agent secara lengkap:
+
+```text
+Menerima perintah
+      ↓
+Memahami maksud
+      ↓
+Membaca data
+      ↓
+Mengambil keputusan
+      ↓
+Menjalankan tindakan
+      ↓
+Memberikan laporan
+```
+
+## Contoh penggunaan
+
+Anda menulis:
+
+> Besok ingatkan saya follow-up Yamada-san soal kontrak. Prioritas tinggi.
+
+AI Agent akan:
+
+1. Memahami bahwa ini adalah tugas.
+2. Menentukan tanggal besok.
+3. Menandai prioritas tinggi.
+4. Menyimpan tugas.
+5. Mengirim pengingat pada waktunya.
+6. Menanyakan atau mencatat apakah tugas sudah selesai.
+
+Contoh lain:
+
+> Hari ini apa yang paling penting?
+
+Agent membaca:
+
+* Jadwal hari ini.
+* Deadline.
+* Tugas yang belum selesai.
+* Tugas prioritas tinggi.
+* Follow-up klien.
+* Kegiatan tim.
+
+Kemudian memberikan jawaban:
+
+```text
+Prioritas Anda hari ini:
+
+1. Konfirmasi kontrak Jepang.
+2. Review progress AppMap AI.
+3. Persiapan pelatihan Jogja.
+
+Risiko:
+- Proposal Panorama belum dikirim.
+- Ada dua jadwal pada pukul 13.00.
+```
+
+---
+
+# Kenapa aplikasi ini paling cocok
+
+Sebagai direktur, masalah utamanya biasanya bukan mencatat semua pekerjaan, tetapi:
+
+* Menentukan mana yang penting.
+* Mengingat follow-up.
+* Memantau pekerjaan yang belum selesai.
+* Mengetahui masalah tim.
+* Memastikan keputusan ditindaklanjuti.
+
+Aplikasi ini langsung membantu pekerjaan nyata Anda, tetapi struktur teknisnya masih sederhana.
+
+---
+
+# Pengguna aplikasi
+
+Untuk versi pertama cukup satu pengguna:
+
+```text
+Direktur
+```
+
+Setelah berhasil, dapat ditambah:
+
+```text
+Direktur
+Sekretaris
+Manajer
+Tim
+```
+
+Jangan langsung membuat multi-role yang terlalu banyak.
+
+---
+
+# Fitur MVP
+
+## 1. Input Perintah
+
+Satu kotak seperti chat:
+
+> Besok jam 10 meeting dengan Victor bahas progress ThinkFast.
+
+> Jumat ingatkan saya tagih pembayaran Panorama.
+
+> Minggu ini apa saja yang belum selesai?
+
+AI membaca kalimat biasa dan mengubahnya menjadi data terstruktur.
+
+Contoh hasil:
+
+```json
+{
+  "type": "meeting",
+  "title": "Meeting dengan Victor",
+  "topic": "Progress ThinkFast",
+  "date": "2026-07-25",
+  "time": "10:00",
+  "priority": "high"
+}
+```
+
+## 2. Jadwal
+
+Menampilkan:
+
+* Jadwal hari ini.
+* Jadwal besok.
+* Jadwal minggu ini.
+* Jadwal yang bentrok.
+
+## 3. Daftar Tugas
+
+Setiap tugas memiliki:
+
+```text
+Judul
+Tanggal
+Prioritas
+Status
+Kategori
+Catatan
+```
+
+Status sederhana:
+
+```text
+Belum Dikerjakan
+Sedang Dikerjakan
+Selesai
+Ditunda
+```
+
+## 4. Follow-up
+
+Ini sangat penting untuk direktur.
+
+Contoh:
+
+```text
+Follow-up Yamada-san
+Follow-up pembayaran klien
+Follow-up programmer
+Follow-up proposal
+Follow-up calon pelanggan
+```
+
+AI Agent dapat mengingatkan jika follow-up belum ditandai selesai.
+
+## 5. Briefing Pagi
+
+Setiap pagi, Agent membuat ringkasan:
+
+```text
+Selamat pagi Pak Ony.
+
+Agenda hari ini:
+- 09.00 Meeting tim programmer
+- 13.00 Privat Bu Dewi
+- 16.00 Review laporan
+
+Prioritas:
+1. Kontrak Jepang
+2. Progress AppMap
+3. Persiapan pelatihan
+
+Follow-up terlambat:
+- Panorama Rent Car
+```
+
+## 6. Evaluasi Malam
+
+Agent menanyakan:
+
+```text
+Dari lima tugas hari ini:
+- Dua selesai
+- Dua belum selesai
+- Satu ditunda
+
+Apakah dua tugas yang belum selesai dipindahkan ke besok?
+```
+
+Inilah bagian yang membuat aplikasi terasa seperti Agent, bukan aplikasi todo biasa.
+
+---
+
+# Apa yang dilakukan AI Agent?
+
+AI Agent mempunyai beberapa tools sederhana.
+
+```text
+create_task
+update_task
+complete_task
+create_schedule
+check_schedule_conflict
+get_today_tasks
+get_overdue_tasks
+create_follow_up
+generate_daily_brief
+```
+
+Contoh alur:
+
+```text
+User:
+“Besok jam 9 meeting tim AppMap”
+
+        ↓
+
+Claude memahami perintah
+
+        ↓
+
+Claude memanggil:
+check_schedule_conflict
+
+        ↓
+
+Tidak ada bentrok
+
+        ↓
+
+Claude memanggil:
+create_schedule
+
+        ↓
+
+Jadwal tersimpan
+
+        ↓
+
+Claude menjawab:
+“Meeting tim AppMap sudah dibuat untuk besok pukul 09.00.”
+```
+
+---
+
+# Bedanya chatbot dan AI Agent
+
+## Chatbot biasa
+
+```text
+User: Ingatkan saya meeting besok.
+AI: Baik, jangan lupa meeting besok.
+```
+
+AI hanya menjawab, tetapi tidak menyimpan atau melakukan sesuatu.
+
+## AI Agent
+
+```text
+User: Ingatkan saya meeting besok.
+AI:
+- Menentukan tanggal.
+- Menyimpan jadwal.
+- Membuat reminder.
+- Memeriksa bentrok.
+- Mengirim pengingat.
+- Mencatat status.
+```
+
+Agent mempunyai akses ke tools dan data.
+
+---
+
+# Tampilan aplikasi
+
+Cukup empat menu.
+
+## 1. Dashboard Direktur
+
+Berisi:
+
+* Agenda hari ini.
+* Tiga prioritas utama.
+* Tugas terlambat.
+* Follow-up.
+* Ringkasan AI.
+
+## 2. AI Assistant
+
+Tampilan chat untuk memberikan instruksi.
+
+```text
+“Apa agenda hari ini?”
+
+“Tambahkan meeting besok jam 10.”
+
+“Tugas mana yang belum selesai?”
+```
+
+## 3. Jadwal dan Tugas
+
+Berisi kalender dan daftar tugas.
+
+## 4. Laporan Harian
+
+Menampilkan:
+
+* Tugas selesai.
+* Tugas belum selesai.
+* Follow-up terlambat.
+* Agenda besok.
+* Rekomendasi AI.
+
+---
+
+# Database sederhana
+
+Untuk MVP hanya membutuhkan beberapa tabel.
+
+## `users`
+
+```text
+id
+name
+email
+timezone
+```
+
+## `tasks`
+
+```text
+id
+user_id
+title
+description
+due_date
+priority
+status
+category
+created_at
+completed_at
+```
+
+## `schedules`
+
+```text
+id
+user_id
+title
+start_at
+end_at
+location
+notes
+status
+```
+
+## `follow_ups`
+
+```text
+id
+user_id
+title
+related_person
+due_date
+status
+notes
+```
+
+## `agent_runs`
+
+```text
+id
+user_id
+command
+agent_action
+result
+status
+created_at
+```
+
+Tabel `agent_runs` berguna agar Anda dapat melihat pekerjaan apa yang dilakukan AI.
+
+---
+
+# Teknologi yang saya rekomendasikan
+
+Karena Anda sudah terbiasa dengan ekosistem ini:
+
+```text
+Frontend     : Next.js
+UI           : V0
+Backend      : Next.js API atau NestJS
+Database     : Supabase PostgreSQL
+AI           : Claude API
+ORM          : Prisma
+Scheduler    : Cron Job
+Notifikasi   : WhatsApp API Kirimi.id
+Deploy       : Vercel
+```
+
+Untuk miniatur pertama, backend tidak harus langsung NestJS. Gunakan:
+
+```text
+Next.js + Supabase + Claude API
+```
+
+Supaya lebih cepat dipahami dan dibuat.
+
+---
+
+# Alur teknis aplikasi
+
+```text
+User mengetik perintah
+        ↓
+Frontend mengirim ke API
+        ↓
+Backend mengirim perintah ke Claude
+        ↓
+Claude memilih tool
+        ↓
+Backend menjalankan tool
+        ↓
+Data disimpan ke Supabase
+        ↓
+Hasil dikembalikan ke Claude
+        ↓
+Claude memberikan jawaban
+```
+
+Untuk reminder:
+
+```text
+Cron Job berjalan setiap beberapa menit
+        ↓
+Mencari jadwal yang mendekati waktunya
+        ↓
+Agent membuat pesan pengingat
+        ↓
+Kirimi.id mengirim WhatsApp
+        ↓
+Log pengiriman disimpan
+```
+
+---
+
+# Contoh Agent pertama
+
+Nama Agent:
+
+```text
+Director Assistant Agent
+```
+
+Instruksi Agent:
+
+```text
+Anda adalah asisten direktur.
+
+Tugas Anda membantu mengelola jadwal, tugas, prioritas,
+follow-up, dan briefing harian.
+
+Gunakan tools yang tersedia untuk membaca dan menyimpan data.
+
+Aturan:
+1. Jangan membuat jadwal jika waktu belum jelas.
+2. Periksa konflik sebelum membuat jadwal.
+3. Tugas klien, pembayaran, dan deadline diberi prioritas tinggi.
+4. Jangan menghapus data tanpa persetujuan pengguna.
+5. Setelah menjalankan tool, jelaskan hasil secara singkat.
+6. Jika tugas belum selesai melewati deadline, tandai sebagai terlambat.
+```
+
+---
+
+# Tahapan pembuatan
+
+## Tahap 1
+
+Buat aplikasi tugas biasa:
+
+```text
+Tambah tugas
+Ubah tugas
+Selesaikan tugas
+Lihat tugas hari ini
+```
+
+## Tahap 2
+
+Pasang Claude API agar perintah bahasa biasa berubah menjadi tugas.
+
+```text
+“Ingatkan saya bayar server Jumat”
+```
+
+Menjadi data tugas.
+
+## Tahap 3
+
+Tambahkan tools agar Claude dapat:
+
+```text
+Membuat tugas
+Mengubah tugas
+Mencari tugas
+Menyelesaikan tugas
+```
+
+## Tahap 4
+
+Tambahkan briefing otomatis.
+
+```text
+Briefing pagi
+Evaluasi malam
+```
+
+## Tahap 5
+
+Tambahkan WhatsApp reminder melalui Kirimi.id.
+
+---
+
+# Skenario demo terbaik
+
+Saat menjelaskan AI Agent ke tim, gunakan demo ini:
+
+```text
+1. Ketik:
+   “Besok jam 10 meeting dengan Victor membahas AppMap.”
+
+2. Agent mengecek jadwal.
+
+3. Agent membuat meeting.
+
+4. Ketik:
+   “Apa agenda saya besok?”
+
+5. Agent membaca database dan menjawab.
+
+6. Ketik:
+   “Pindahkan meeting Victor ke jam 11.”
+
+7. Agent menemukan jadwal dan memperbaruinya.
+
+8. Pada waktunya, sistem mengirim pengingat WhatsApp.
+```
+
+Dari miniatur ini, Anda akan memahami konsep utama:
+
+```text
+Prompt
+Context
+Agent
+Tool
+Database
+Automation
+Notification
+Audit log
+```
+
+## Rekomendasi final
+
+Mulailah dengan **Director Daily Assistant**, bukan langsung AppMap AI Agent yang kompleks.
+
+Buat batas MVP:
+
+```text
+1 pengguna
+4 menu
+3 tabel utama
+1 AI Agent
+6–8 tools
+1 notifikasi WhatsApp
+```
+
+Setelah berhasil, pola Agent tersebut dapat dipindahkan ke AppMap AI Dependency. Perbedaannya hanya tools-nya:
+
+```text
+Director Assistant:
+create_task
+create_schedule
+send_reminder
+
+AppMap AI:
+create_node
+analyze_dependency
+update_documentation
+create_change_request
+```
+
+Fondasi dan alur kerjanya tetap sama.

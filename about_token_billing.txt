@@ -1,0 +1,440 @@
+Nah, ini justru pelajaran penting dari miniatur AI Agent Anda:
+
+> **Masalah utama AI Agent bukan hanya bisa atau tidak, tetapi bagaimana mengendalikan biaya setiap prosesnya.**
+
+Biaya **Rp600 sekali chat sebenarnya kecil untuk penggunaan pribadi**, tetapi akan menjadi mahal ketika aplikasi dipakai terus-menerus:
+
+* 20 chat/hari ≈ Rp12.000
+* 30 hari ≈ Rp360.000/bulan
+* 10 pengguna aktif ≈ Rp3,6 juta/bulan
+* Belum termasuk briefing otomatis, pengecekan jadwal, dan notifikasi
+
+Kemungkinan besar biaya tinggi terjadi karena setiap pesan mengirim ulang **system prompt, seluruh riwayat chat, daftar tools, data jadwal, dan respons AI yang terlalu panjang**.
+
+## Jangan gunakan Claude terbaik untuk semua pekerjaan
+
+Untuk Director Daily Assistant, gunakan arsitektur bertingkat:
+
+```text
+Pesan pengguna
+      ↓
+Model murah menentukan maksud
+      ↓
+Backend menjalankan fungsi
+      ↓
+Model lebih pintar dipanggil hanya bila perlu
+```
+
+### Gunakan Haiku untuk sekitar 80% pekerjaan
+
+Cocok untuk:
+
+* Membuat tugas
+* Membaca jadwal
+* Mengubah tanggal
+* Menandai tugas selesai
+* Mencari follow-up
+* Membuat jawaban singkat
+* Klasifikasi perintah
+
+Claude Haiku 4.5 saat ini memiliki tarif standar sekitar **$1 per satu juta input token dan $5 per satu juta output token**. Claude Sonnet 5 memiliki harga pengantar **$2 input dan $10 output per satu juta token sampai 31 Agustus 2026**, kemudian tarif standarnya menjadi $3/$15. ([Claude Platform Docs][1])
+
+### Gunakan Sonnet hanya untuk pekerjaan kompleks
+
+Contohnya:
+
+* Menyusun prioritas direktur
+* Membuat analisis mingguan
+* Membaca laporan panjang
+* Memberikan rekomendasi keputusan
+* Menganalisis bentrok banyak jadwal
+* Menyusun strategi kerja
+
+Untuk aplikasi jadwal sederhana, tidak perlu Sonnet di setiap percakapan.
+
+## Arsitektur yang saya sarankan
+
+```text
+User:
+“Besok jam 10 meeting dengan Victor”
+
+        ↓
+
+Haiku:
+Mendeteksi intent = create_schedule
+
+        ↓
+
+Backend:
+check_schedule_conflict()
+
+        ↓
+
+Backend:
+create_schedule()
+
+        ↓
+
+Template biasa:
+“Jadwal berhasil dibuat.”
+```
+
+Perhatikan langkah terakhir: **tidak perlu memanggil Claude lagi** hanya untuk mengatakan jadwal sudah tersimpan.
+
+Ini dapat memangkas satu putaran pemanggilan model.
+
+---
+
+# Penyebab umum biaya Rp600
+
+## 1. Seluruh riwayat chat dikirim ulang
+
+Misalnya chat sudah 20 pesan. Setiap pesan baru mengirim kembali:
+
+```text
+System prompt
+Pesan 1
+Jawaban 1
+Pesan 2
+Jawaban 2
+...
+Pesan 20
+Pesan terbaru
+```
+
+Makin panjang percakapan, makin mahal setiap chat berikutnya.
+
+### Solusinya
+
+Batasi riwayat, misalnya hanya:
+
+```typescript
+const recentMessages = messages.slice(-6);
+```
+
+Simpan ringkasan percakapan lama:
+
+```text
+Ringkasan konteks:
+- Pengguna sedang mengatur agenda minggu ini.
+- Meeting Victor dipindahkan ke Jumat pukul 10.00.
+- Kontrak Jepang menjadi prioritas tinggi.
+```
+
+Kirim ringkasan tersebut, bukan semua percakapan.
+
+---
+
+## 2. Mengirim semua data jadwal
+
+Jangan mengirim seluruh tugas dan jadwal setahun.
+
+Untuk pertanyaan:
+
+> Apa agenda saya hari ini?
+
+Backend cukup mengambil:
+
+```sql
+WHERE start_at >= awal_hari
+AND start_at <= akhir_hari
+```
+
+Lalu hanya data hari ini yang dikirim ke Claude.
+
+Lebih bagus lagi, untuk pertanyaan tersebut backend sebenarnya bisa menjawab langsung menggunakan template tanpa Claude.
+
+---
+
+## 3. Tool terlalu banyak
+
+Jika setiap request mengirim 20–30 definisi tool, semuanya ikut dihitung sebagai input token.
+
+Padahal permintaan jadwal hanya membutuhkan:
+
+```text
+get_schedule
+check_conflict
+create_schedule
+update_schedule
+```
+
+Gunakan **dynamic tool selection**.
+
+```typescript
+function selectTools(intent: string) {
+  if (intent === 'schedule') {
+    return scheduleTools;
+  }
+
+  if (intent === 'task') {
+    return taskTools;
+  }
+
+  return readOnlyTools;
+}
+```
+
+Jangan mengirim semua tools sekaligus.
+
+---
+
+## 4. Respons AI terlalu panjang
+
+Untuk Agent jadwal, jawabannya seharusnya:
+
+> Jadwal meeting dengan Victor berhasil dibuat untuk Jumat, 24 Juli 2026 pukul 10.00. Tidak ada bentrok.
+
+Bukan penjelasan panjang tentang lima tahap proses Agent.
+
+Batasi output:
+
+```typescript
+max_tokens: 300
+```
+
+Bahkan untuk perintah sederhana:
+
+```typescript
+max_tokens: 150
+```
+
+Harga output token lebih mahal daripada input token pada model Claude, sehingga respons panjang cepat meningkatkan biaya. ([Claude Platform Docs][1])
+
+---
+
+## 5. Agent loop terlalu panjang
+
+Satu chat pengguna bisa memicu:
+
+```text
+Claude call 1 → pilih tool
+Claude call 2 → baca hasil
+Claude call 3 → pilih tool lain
+Claude call 4 → membuat jawaban
+```
+
+Walaupun pengguna hanya melihat satu chat, backend mungkin memanggil API empat kali.
+
+Buat batas:
+
+```typescript
+const MAX_AGENT_STEPS = 3;
+```
+
+Untuk pekerjaan sederhana, targetkan maksimal:
+
+```text
+1 pemanggilan AI
+1 pemanggilan tool
+0–1 pemanggilan AI tambahan
+```
+
+---
+
+# Gunakan Prompt Caching
+
+System prompt dan tool definitions biasanya berulang pada setiap request.
+
+Claude menyediakan **prompt caching** sehingga konteks berulang dapat dibaca dengan biaya lebih rendah. Pada beberapa model, cache-read dapat mencapai sekitar sepersepuluh harga input standar. ([Claude Platform Docs][2])
+
+Yang cocok dimasukkan ke cache:
+
+* System prompt Agent
+* Aturan aplikasi
+* Deskripsi pengguna
+* Definisi tools yang stabil
+* Kebijakan keamanan
+* Struktur output
+
+Yang tidak perlu dicache:
+
+* Pesan terbaru
+* Jadwal hari ini
+* Tugas terbaru
+* Hasil tool yang berubah
+
+Strukturnya:
+
+```text
+Cached:
+- Identitas Director Assistant
+- Aturan Agent
+- Tool definitions
+
+Tidak dicache:
+- Pertanyaan pengguna
+- Data agenda
+- Hasil database
+```
+
+---
+
+# Tidak semua chat harus menggunakan AI
+
+Ini penghematan terbesar.
+
+## Tidak perlu Claude
+
+Pertanyaan seperti:
+
+* Agenda hari ini
+* Daftar tugas terlambat
+* Berapa tugas belum selesai
+* Tandai tugas selesai
+* Hapus tugas nomor 3
+* Buka kalender
+
+Jawab langsung melalui:
+
+```text
+Intent sederhana
+      ↓
+Backend query
+      ↓
+Response template
+```
+
+## Perlu Claude Haiku
+
+* Kalimat pengguna perlu diubah menjadi data
+* Tanggal ditulis dengan bahasa alami
+* Ada beberapa maksud dalam satu pesan
+* Perintah kurang terstruktur
+
+Contoh:
+
+> Besok setelah meeting tim, ingatkan saya follow-up Yamada-san.
+
+## Perlu Claude Sonnet
+
+* Memilih prioritas
+* Membuat rekomendasi
+* Menganalisis laporan
+* Menyusun briefing strategis
+* Membandingkan banyak pekerjaan
+
+---
+
+# Routing yang ideal
+
+```typescript
+type AgentComplexity = 'no-ai' | 'simple' | 'complex';
+
+function chooseModel(complexity: AgentComplexity) {
+  switch (complexity) {
+    case 'no-ai':
+      return null;
+
+    case 'simple':
+      return process.env.CLAUDE_FAST_MODEL; // Haiku
+
+    case 'complex':
+      return process.env.CLAUDE_SMART_MODEL; // Sonnet
+  }
+}
+```
+
+Jangan menuliskan nama model permanen di kode. Simpan di environment variable agar mudah diganti:
+
+```env
+CLAUDE_FAST_MODEL=...
+CLAUDE_SMART_MODEL=...
+```
+
+---
+
+# Tambahkan pencatatan biaya per Agent Run
+
+Sekarang jangan hanya menyimpan status `success`. Simpan juga:
+
+```text
+input_tokens
+output_tokens
+cache_creation_tokens
+cache_read_tokens
+total_api_calls
+model
+estimated_cost
+duration_ms
+```
+
+Contoh tabel:
+
+```sql
+CREATE TABLE ai_usage_logs (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+  agent_run_id UUID,
+  model VARCHAR(100),
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  cache_creation_tokens INTEGER DEFAULT 0,
+  cache_read_tokens INTEGER DEFAULT 0,
+  api_call_count INTEGER DEFAULT 1,
+  estimated_cost_usd NUMERIC(12, 8),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+Anthropic juga menyediakan endpoint penghitungan token sebelum request dikirim, yang dapat digunakan untuk mengestimasi dan membatasi biaya. ([Claude Platform Docs][3])
+
+Di dashboard admin tampilkan:
+
+```text
+Biaya chat ini       Rp600
+Pemanggilan API      3 kali
+Input token          8.200
+Output token         1.400
+Model                Sonnet
+Konteks terbesar     Riwayat percakapan
+```
+
+Baru setelah itu kita tahu sumber kebocorannya.
+
+---
+
+# Target biaya yang realistis
+
+Untuk perintah sederhana seperti:
+
+> Besok jam 10 meeting dengan Victor.
+
+Menurut saya targetnya seharusnya:
+
+```text
+Backend langsung atau Haiku
+Riwayat maksimal 4–6 pesan
+Tools hanya kategori jadwal
+Output maksimal 150–250 token
+Maksimal 2 API calls
+```
+
+Dengan optimasi itu, biaya seharusnya bisa ditekan jauh di bawah Rp600 per perintah—sering kali menjadi sebagian kecilnya, tergantung panjang konteks dan jumlah agent loop.
+
+Untuk analisis seperti:
+
+> Evaluasi seluruh jadwal, tugas, deadline, dan tentukan prioritas minggu depan.
+
+Biaya Rp600 atau lebih masih dapat diterima karena nilai pekerjaannya lebih tinggi.
+
+# Rekomendasi keputusan
+
+Jangan mengganti Claude sepenuhnya karena Anda sudah membuktikan kualitasnya bagus. Gunakan pola:
+
+```text
+Operasi database biasa     → tanpa AI
+Perintah bahasa alami      → Claude Haiku
+Analisis direktur          → Claude Sonnet
+Coding kompleks            → Claude Sonnet/Opus sesuai kebutuhan
+```
+
+Prinsip produknya:
+
+> **AI hanya dipanggil ketika memang diperlukan untuk memahami atau mengambil keputusan. Jangan gunakan AI untuk pekerjaan yang dapat diselesaikan query dan logika backend biasa.**
+
+Langkah pertama sekarang adalah membuka satu record API yang menghabiskan Rp600, lalu lihat **model, input token, output token, jumlah API call, dan panjang riwayat yang dikirim**. Dari situ biasanya langsung terlihat apakah pemborosan berasal dari history, tools, output, atau agent loop.
+
+[1]: https://docs.anthropic.com/en/docs/about-claude/pricing?utm_source=chatgpt.com "Pricing - Claude Platform Docs"
+[2]: https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching?utm_source=chatgpt.com "Prompt caching - Claude Platform Docs"
+[3]: https://docs.anthropic.com/en/docs/build-with-claude/token-counting?utm_source=chatgpt.com "Token counting - Claude Platform Docs"
