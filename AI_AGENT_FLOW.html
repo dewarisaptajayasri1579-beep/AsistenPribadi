@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cara Kerja AI Agent — Director Daily Assistant</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d12;
+    --card: #12151c;
+    --border: #232833;
+    --text: #e6e9ef;
+    --muted: #9aa4b2;
+    --accent: #7c9cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  h1 {
+    font-size: 1.9rem;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    margin: 0 0 32px;
+  }
+  .case {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+  }
+  .case code {
+    color: var(--accent);
+  }
+  .diagram-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 40px;
+    overflow-x: auto;
+  }
+  h2 {
+    font-size: 1.25rem;
+    margin: 40px 0 16px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  ol {
+    padding-left: 1.3rem;
+  }
+  li {
+    margin-bottom: 14px;
+  }
+  code, .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: rgba(124, 156, 255, 0.12);
+    color: var(--accent);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+  strong { color: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Cara Kerja AI Agent</h1>
+  <p class="subtitle">Director Daily Assistant — alur pemrosesan satu perintah chat</p>
+
+  <div class="case">
+    Contoh kasus: kamu ketik di chat —
+    <code>"tambahkan jadwal besok minggu jam 10 ke Tlatar sama anak2"</code>
+  </div>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    participant U as Kamu (Browser)
+    participant API as API Route<br/>/api/agent
+    participant AG as runAgent()<br/>lib/agent.ts
+    participant C as Claude API<br/>(claude-haiku-4-5)
+    participant T as Tool Executor<br/>lib/agent-tools.ts
+    participant DB as Database<br/>(Supabase/Prisma)
+
+    U->>API: POST { command: "tambahkan jadwal besok minggu jam 10 ke Tlatar sama anak2" }
+    API->>API: getApiUser() → actor (siapa yg login)<br/>getWorkspaceOwner() → owner (pemilik data)
+    API->>AG: runAgent({ ownerId, actorId, command })
+
+    AG->>AG: Tempel "Waktu sekarang: 2026-07-24T...+07:00"<br/>ke depan command (bukan di system prompt,<br/>supaya system prompt tetap statis & bisa di-cache)
+
+    AG->>C: messages.create({ system, tools[9], messages })
+    Note over C: Model baca "besok minggu jam 10"<br/>+ waktu sekarang → hitung tanggal absolut<br/>(mis. 2026-07-26T10:00:00+07:00)
+    C-->>AG: stop_reason: "tool_use"<br/>tool_use: create_schedule<br/>{ title: "Ke Tlatar sama anak-anak",<br/>startAt: "2026-07-26T10:00:00+07:00" }
+
+    AG->>T: runTool("create_schedule", input, { userId: ownerId })
+    T->>DB: cek bentrok jadwal (checkScheduleConflict)
+    alt Tidak bentrok
+        T->>DB: INSERT Schedule
+        DB-->>T: { created: true, schedule }
+    else Bentrok dengan jadwal lain
+        T-->>AG: { created: false, hasConflict: true, conflicts: [...] }
+    end
+    T-->>AG: hasil tool (JSON)
+
+    AG->>DB: simpan AgentRun (audit: siapa, tool apa, hasil apa)
+    AG->>C: kirim tool_result balik ke Claude
+    C-->>AG: stop_reason: "end_turn"<br/>Teks balasan: "Sudah saya tambahkan jadwal..."
+
+    AG->>DB: simpan AiUsageLog (token, model, estimasi biaya Rp)
+    AG-->>API: { reply, model: "claude-haiku-4-5" }
+    API-->>U: tampil balasan + badge model di chat
+    </pre>
+  </div>
+
+  <h2>Penjelasan tiap langkah</h2>
+  <ol>
+    <li><strong>Kamu kirim chat</strong> → request masuk ke <code>POST /api/agent</code>.</li>
+    <li><strong>Owner vs actor</strong>: sistem cek siapa yang login (actor, untuk pencatatan biaya/log) dan siapa pemilik data workspace (owner — semua jadwal/tugas memang punya satu pemilik bersama meski yang login bisa banyak orang).</li>
+    <li><strong>Waktu sekarang disisipkan ke pesan</strong>, bukan ke system prompt — supaya system prompt (aturan asisten) tetap identik setiap request dan Anthropic bisa memakai <em>prompt caching</em> (lebih murah, lebih cepat).</li>
+    <li><strong>Claude membaca perintah</strong> + daftar 9 tools yang tersedia (<code>create_task</code>, <code>create_schedule</code>, <code>check_schedule_conflict</code>, <code>get_today_tasks</code>, dll), lalu memutuskan: ini permintaan bikin jadwal → panggil tool <code>create_schedule</code> dengan parameter yang sudah dia hitung sendiri dari bahasa natural ("besok minggu jam 10" → tanggal+jam absolut Asia/Jakarta).</li>
+    <li><strong>Tool dieksekusi di server kita</strong> (bukan oleh Claude) — <code>create_schedule</code> otomatis cek bentrok jadwal dulu sebelum insert ke database. Kalau bentrok, tidak jadi dibuat dan Claude akan diberi tahu supaya bisa menjelaskan ke kamu.</li>
+    <li><strong>Dicatat ke <code>AgentRun</code></strong> — jejak audit: siapa yang minta, tool apa yang jalan, hasilnya apa.</li>
+    <li><strong>Hasil tool dikirim balik ke Claude</strong> sebagai <code>tool_result</code>, lalu Claude menyusun kalimat balasan natural dalam Bahasa Indonesia (tanpa menjelaskan proses internal, sesuai aturan di system prompt).</li>
+    <li><strong>Dicatat ke <code>AiUsageLog</code></strong> — token in/out, model, estimasi biaya Rupiah — inilah yang muncul di menu <strong>Biaya AI</strong>.</li>
+    <li><strong>Balasan + label model</strong> (Haiku) ditampilkan di chat.</li>
+  </ol>
+
+  <p style="color: var(--muted); margin-top: 32px;">
+    Loop tool-calling ini bisa berulang sampai 6 kali (<code>MAX_TOOL_ITERATIONS</code>) kalau Claude perlu memanggil lebih dari satu tool berturut-turut (misal: cek jadwal dulu, baru buat tugas terkait).
+  </p>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: "dark" });
+</script>
+</body>
+</html>
