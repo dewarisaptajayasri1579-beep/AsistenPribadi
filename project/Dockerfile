@@ -5,7 +5,7 @@ WORKDIR /app
 # ---- deps (semua, termasuk devDependencies untuk build) ----
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN corepack pnpm install --frozen-lockfile
+RUN corepack pnpm install --frozen-lockfile --ignore-scripts
 
 # ---- builder ----
 FROM base AS builder
@@ -28,7 +28,7 @@ RUN mkdir -p /home/nextjs/.cache && chown -R nextjs:nodejs /home/nextjs
 # terbukti tidak menyertakan dependency yang di-import secara dinamis
 # (node-cron di instrumentation.ts, @prisma/adapter-pg di lib/prisma.ts).
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN corepack pnpm install --frozen-lockfile --prod
+RUN corepack pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=builder /app/prisma ./prisma
 RUN corepack pnpm exec prisma generate
