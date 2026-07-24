@@ -20,7 +20,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs nextjs
+RUN groupadd --system --gid 1001 nodejs && useradd --system --uid 1001 --gid nodejs --create-home nextjs
+RUN mkdir -p /home/nextjs/.cache && chown -R nextjs:nodejs /home/nextjs
 
 # Install ulang hanya production dependencies langsung di image final —
 # lebih andal daripada mengandalkan Next.js standalone file-tracing, yang
