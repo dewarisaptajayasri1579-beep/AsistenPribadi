@@ -31,6 +31,7 @@ model User {
   aiUsageLogs            AiUsageLog[]
   sessions               Session[]
   pushSubscriptions      PushSubscription[]
+  recurringSchedules     RecurringSchedule[]
 
   @@map("users")
 }
@@ -75,18 +76,41 @@ model Task {
 }
 
 model Schedule {
-  id         String    @id @default(uuid())
-  userId     String    @map("user_id")
-  title      String
-  startAt    DateTime  @map("start_at")
-  endAt      DateTime? @map("end_at")
-  location   String?
-  notes      String?
-  status     String    @default("confirmed")
-  remindedAt DateTime? @map("reminded_at")
-  user       User      @relation(fields: [userId], references: [id])
+  id           String             @id @default(uuid())
+  userId       String             @map("user_id")
+  title        String
+  startAt      DateTime           @map("start_at")
+  endAt        DateTime?          @map("end_at")
+  location     String?
+  notes        String?
+  status       String             @default("confirmed")
+  remindedAt   DateTime?          @map("reminded_at")
+  recurrenceId String?            @map("recurrence_id")
+  user         User               @relation(fields: [userId], references: [id])
+  recurrence   RecurringSchedule? @relation(fields: [recurrenceId], references: [id])
 
   @@map("schedules")
+}
+
+/// Definisi jadwal rutin/berulang (mis. "tiap Senin & Kamis") — kejadian aslinya tetap
+/// disimpan sebagai baris Schedule biasa (recurrenceId menunjuk ke sini) supaya reminder,
+/// cek bentrok, dan briefing tidak perlu tahu soal konsep recurrence sama sekali.
+model RecurringSchedule {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  title        String
+  weekdays     Int[] // ISO weekday: 1=Senin ... 7=Minggu
+  startTime    String     @map("start_time") // "HH:mm" Asia/Jakarta
+  endTime      String?    @map("end_time")
+  location     String?
+  notes        String?
+  active       Boolean    @default(true)
+  horizonUntil DateTime   @map("horizon_until") // sudah dibuatkan Schedule sampai tanggal ini
+  createdAt    DateTime   @default(now()) @map("created_at")
+  user         User       @relation(fields: [userId], references: [id])
+  schedules    Schedule[]
+
+  @@map("recurring_schedules")
 }
 
 model FollowUp {

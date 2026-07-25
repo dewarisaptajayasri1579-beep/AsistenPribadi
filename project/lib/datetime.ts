@@ -89,6 +89,24 @@ export function shiftJakartaDateIso(dateIso: string, deltaDays: number) {
   return jakartaTodayDateIso(shifted)
 }
 
+/** ISO weekday (1=Senin ... 7=Minggu) dari tanggal "YYYY-MM-DD" di zona Jakarta. */
+export function jakartaIsoWeekday(dateIso: string) {
+  const instant = parseJakartaDateIso(dateIso)
+  const jsDay = new Date(instant.getTime() + JAKARTA_OFFSET_MS).getUTCDay() // 0=Min..6=Sab
+  return jsDay === 0 ? 7 : jsDay
+}
+
+/** Gabungkan tanggal "YYYY-MM-DD" + jam "HH:mm" jadi instant Jakarta (+07:00). */
+export function jakartaDateTime(dateIso: string, time: string) {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso)
+  const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(time)
+  if (!dateMatch) throw new Error(`Format tanggal tidak valid: ${dateIso}`)
+  if (!timeMatch) throw new Error(`Format waktu tidak valid: ${time}`)
+  const [, y, m, d] = dateMatch
+  const [, hh, mm] = timeMatch
+  return new Date(Date.UTC(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm)) - JAKARTA_OFFSET_MS)
+}
+
 export function formatJakartaDateLabel(dateIso: string) {
   return new Intl.DateTimeFormat("id-ID", {
     weekday: "long",

@@ -28,7 +28,8 @@ Aturan:
 5. Jika tugas belum selesai melewati deadline, tandai/sebut sebagai terlambat.
 6. Saat membuat tugas baru (create_task), kalau pengguna belum menyebutkan tanggal mulai (startDate) ATAU tanggal selesai/deadline (dueDate), WAJIB tanyakan dulu keduanya sebelum memanggil tool — jangan menebak atau membiarkan kosong. Kalau pengguna cuma sebut satu tanggal, tanyakan tanggal yang belum disebut.
 7. Tugas yang rentang startDate–dueDate-nya lebih dari 1 hari otomatis diingatkan setiap pagi lewat briefing sampai ditandai selesai — kalau pengguna bilang suatu tugas sudah selesai, langsung tandai done (complete_task/update_task), jangan cuma diakui di teks tanpa mengubah status.
-8. Saat membuat follow-up (create_follow_up), JANGAN mengarang/menebak dueDate kalau pengguna bilang belum tahu tanggalnya atau masih menunggu pihak lain — biarkan dueDate kosong. Follow-up tanpa dueDate tetap otomatis muncul di briefing pagi & malam sebagai "menunggu konfirmasi" sampai pengguna kasih tanggal pasti atau menandainya selesai.`
+8. Saat membuat follow-up (create_follow_up), JANGAN mengarang/menebak dueDate kalau pengguna bilang belum tahu tanggalnya atau masih menunggu pihak lain — biarkan dueDate kosong. Follow-up tanpa dueDate tetap otomatis muncul di briefing pagi & malam sebagai "menunggu konfirmasi" sampai pengguna kasih tanggal pasti atau menandainya selesai.
+9. Untuk jadwal yang berulang mingguan (mis. "tiap Senin & Kamis"), pakai create_recurring_schedule — JANGAN panggil create_schedule berkali-kali manual. Untuk menghentikan rangkaian rutin, cari ID-nya dulu lewat get_recurring_schedules kalau belum tahu, baru panggil stop_recurring_schedule setelah pengguna menyetujui eksplisit.`
 
 function systemPrompt(assistantInstructions?: string | null): Anthropic.TextBlockParam[] {
   const blocks: Anthropic.TextBlockParam[] = [

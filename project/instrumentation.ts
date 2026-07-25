@@ -9,6 +9,7 @@ export async function register() {
   const { runScheduleReminders } = await import("@/lib/cron/schedule-reminders")
   const { runMorningBriefing } = await import("@/lib/cron/morning-briefing")
   const { runEveningEvaluation } = await import("@/lib/cron/evening-evaluation")
+  const { runRecurringScheduleTopUp } = await import("@/lib/cron/recurring-schedule-topup")
 
   // Tahap 5: cek jadwal yang mendekati waktu setiap 5 menit, kirim reminder WhatsApp.
   cron.schedule(
@@ -37,5 +38,16 @@ export async function register() {
     { timezone: "Asia/Jakarta" }
   )
 
-  console.log("[cron] Terdaftar: reminder jadwal (5 menit), briefing pagi (07:00), evaluasi malam (20:00) WIB")
+  // Top-up jadwal rutin/berulang setiap Senin dini hari, supaya horizon-nya tidak pernah habis.
+  cron.schedule(
+    "0 1 * * 1",
+    () => {
+      runRecurringScheduleTopUp().catch((e) => console.error("[cron] recurring-schedule-topup gagal:", e))
+    },
+    { timezone: "Asia/Jakarta" }
+  )
+
+  console.log(
+    "[cron] Terdaftar: reminder jadwal (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00) WIB"
+  )
 }

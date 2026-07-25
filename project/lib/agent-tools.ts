@@ -1,7 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk"
 
-import { jakartaRangeFromToday, jakartaTodayRange } from "@/lib/datetime"
+import { jakartaRangeFromToday, jakartaTodayDateIso, jakartaTodayRange, parseJakartaDateIso } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
+import { materializeOccurrences, RECURRING_HORIZON_WEEKS } from "@/lib/recurring-schedule"
 
 export const toolDefinitions: Anthropic.Tool[] = [
   {
@@ -62,6 +63,43 @@ export const toolDefinitions: Anthropic.Tool[] = [
         notes: { type: "string" },
       },
       required: ["title", "startAt"],
+    },
+  },
+  {
+    name: "create_recurring_schedule",
+    description:
+      "Membuat jadwal RUTIN/berulang mingguan (mis. 'tiap Senin & Kamis jam 9'). Otomatis bikin kejadian nyata untuk 12 minggu ke depan (terus di-top-up mingguan supaya tidak pernah habis) — jangan panggil create_schedule berkali-kali manual untuk pola berulang.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        weekdays: {
+          type: "array",
+          items: { type: "integer", minimum: 1, maximum: 7 },
+          description: "Hari dalam seminggu: 1=Senin, 2=Selasa, 3=Rabu, 4=Kamis, 5=Jumat, 6=Sabtu, 7=Minggu",
+        },
+        startTime: { type: "string", description: "Jam mulai, format HH:mm (Asia/Jakarta), mis. '09:00'" },
+        endTime: { type: "string", description: "Jam selesai, format HH:mm, opsional (default 1 jam setelah mulai)" },
+        location: { type: "string" },
+        notes: { type: "string" },
+        startDate: { type: "string", description: "Mulai berlaku dari tanggal ini, format YYYY-MM-DD, default hari ini" },
+      },
+      required: ["title", "weekdays", "startTime"],
+    },
+  },
+  {
+    name: "get_recurring_schedules",
+    description: "Melihat daftar jadwal rutin/berulang yang masih aktif, termasuk ID-nya (dibutuhkan sebelum stop_recurring_schedule).",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "stop_recurring_schedule",
+    description:
+      "Menghentikan rangkaian jadwal rutin — kejadian yang sudah lewat tetap ada di riwayat, tapi kejadian mendatang yang belum lewat akan dihapus. Cari ID-nya lewat get_recurring_schedules dulu kalau belum tahu. Hanya panggil setelah pengguna menyetujui secara eksplisit.",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
     },
   },
   {
@@ -233,6 +271,49 @@ async function createSchedule(ctx: ToolContext, input: any) {
   return { created: true, schedule }
 }
 
+async function createRecurringSchedule(ctx: ToolContext, input: any) {
+  const weekdays: number[] = Array.isArray(input.weekdays) ? input.weekdays : []
+  if (weekdays.length === 0) throw new Error("weekdays wajib diisi minimal 1 hari")
+
+  const startDateIso = input.startDate || jakartaTodayDateIso()
+  const horizonUntil = new Date(
+    parseJakartaDateIso(startDateIso).getTime() + RECURRING_HORIZON_WEEKS * 7 * 24 * 60 * 60 * 1000
+  )
+
+  const recurring = await prisma.recurringSchedule.create({
+    data: {
+      userId: ctx.userId,
+      title: input.title,
+      weekdays,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      location: input.location,
+      notes: input.notes,
+      horizonUntil,
+    },
+  })
+
+  const { created, skipped } = await materializeOccurrences(ctx.userId, recurring, startDateIso, horizonUntil)
+
+  return { recurringScheduleId: recurring.id, createdCount: created.length, skippedDates: skipped }
+}
+
+async function getRecurringSchedules(ctx: ToolContext) {
+  const recurringSchedules = await prisma.recurringSchedule.findMany({ where: { userId: ctx.userId, active: true } })
+  return { recurringSchedules }
+}
+
+async function stopRecurringSchedule(ctx: ToolContext, input: any) {
+  await prisma.recurringSchedule.update({
+    where: { id: input.id, userId: ctx.userId },
+    data: { active: false },
+  })
+  const deleted = await prisma.schedule.deleteMany({
+    where: { recurrenceId: input.id, userId: ctx.userId, startAt: { gt: new Date() } },
+  })
+  return { stopped: true, deletedUpcomingCount: deleted.count }
+}
+
 async function getTodayTasks(ctx: ToolContext) {
   const { start, end } = jakartaTodayRange()
   const [tasks, schedules] = await Promise.all([
@@ -319,6 +400,12 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return completeTask(ctx, input)
     case "create_schedule":
       return createSchedule(ctx, input)
+    case "create_recurring_schedule":
+      return createRecurringSchedule(ctx, input)
+    case "get_recurring_schedules":
+      return getRecurringSchedules(ctx)
+    case "stop_recurring_schedule":
+      return stopRecurringSchedule(ctx, input)
     case "delete_schedule":
       return deleteSchedule(ctx, input)
     case "delete_task":
