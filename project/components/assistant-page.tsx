@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Bot, Send, Sparkles } from "lucide-react"
+import { Bot, Mic, Send, Sparkles } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { PageHeading } from "@/components/page-heading"
@@ -9,6 +9,7 @@ import { quickActions } from "@/lib/dashboard-data"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { useSpeechInput } from "@/components/use-speech-input"
 
 type ChatMessage = { role: "user" | "assistant"; text: string; model?: string }
 
@@ -23,6 +24,7 @@ export function AssistantPage({ userName }: AssistantPageProps) {
   ])
   const [history, setHistory] = useState<unknown[]>([])
   const [pending, setPending] = useState(false)
+  const speech = useSpeechInput((transcript) => setInput((current) => (current ? `${current} ${transcript}` : transcript)))
 
   async function handleSend() {
     const command = input.trim()
@@ -100,6 +102,20 @@ export function AssistantPage({ userName }: AssistantPageProps) {
                   aria-label="Perintah untuk AI Assistant"
                   disabled={pending}
                 />
+                {speech.isSupported && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant={speech.isListening ? "default" : "ghost"}
+                    className="shrink-0 rounded-full"
+                    onClick={speech.toggle}
+                    aria-label={speech.isListening ? "Berhenti merekam" : "Rekam suara"}
+                    aria-pressed={speech.isListening}
+                    disabled={pending}
+                  >
+                    <Mic className={speech.isListening ? "animate-pulse" : ""} />
+                  </Button>
+                )}
                 <Button size="icon" className="shrink-0 rounded-full" onClick={handleSend} aria-label="Kirim perintah" disabled={pending}>
                   <Send />
                 </Button>

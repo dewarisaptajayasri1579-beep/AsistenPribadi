@@ -4,12 +4,14 @@ import {
   Bot,
   CalendarDays,
   ListTodo,
+  Mic,
   Send,
 } from "lucide-react"
 
 import { quickActions } from "@/lib/dashboard-data"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useSpeechInput } from "@/components/use-speech-input"
 
 const quickActionIcons = [CalendarDays, ListTodo, Bell]
 
@@ -26,6 +28,7 @@ export function AiAssistantPanel({ userName }: AiAssistantPanelProps) {
   ])
   const [history, setHistory] = useState<unknown[]>([])
   const [pending, setPending] = useState(false)
+  const speech = useSpeechInput((transcript) => setInput((current) => (current ? `${current} ${transcript}` : transcript)))
 
   async function handleSend() {
     const command = input.trim()
@@ -117,6 +120,19 @@ export function AiAssistantPanel({ userName }: AiAssistantPanelProps) {
             placeholder="Ketik perintah Anda..."
             aria-label="Perintah untuk AI Assistant"
           />
+          {speech.isSupported && (
+            <Button
+              type="button"
+              size="icon"
+              variant={speech.isListening ? "default" : "ghost"}
+              className="shrink-0 rounded-full"
+              onClick={speech.toggle}
+              aria-label={speech.isListening ? "Berhenti merekam" : "Rekam suara"}
+              aria-pressed={speech.isListening}
+            >
+              <Mic className={speech.isListening ? "animate-pulse" : ""} />
+            </Button>
+          )}
           <Button size="icon" className="shrink-0 rounded-full" onClick={handleSend} aria-label="Kirim perintah">
             <Send />
           </Button>

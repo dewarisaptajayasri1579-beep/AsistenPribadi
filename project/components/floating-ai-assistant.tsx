@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Bot, CheckCircle2, Send, Sparkles, X } from "lucide-react"
+import { Bot, CheckCircle2, Mic, Send, Sparkles, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { quickActions } from "@/lib/dashboard-data"
+import { useSpeechInput } from "@/components/use-speech-input"
 
 interface FloatingMessage {
   role: "assistant" | "user"
@@ -21,6 +22,7 @@ export function FloatingAiAssistant() {
     { role: "assistant", text: "Selamat datang. Ada yang bisa saya bantu untuk agenda hari ini?" },
   ])
   const [history, setHistory] = useState<unknown[]>([])
+  const speech = useSpeechInput((transcript) => setInput((current) => (current ? `${current} ${transcript}` : transcript)))
 
   useEffect(() => {
     fetch("/api/me")
@@ -148,6 +150,20 @@ export function FloatingAiAssistant() {
                 aria-label="Perintah untuk floating AI Assistant"
                 disabled={pending}
               />
+              {speech.isSupported && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={speech.isListening ? "default" : "ghost"}
+                  className="size-10 shrink-0 rounded-full"
+                  onClick={speech.toggle}
+                  aria-label={speech.isListening ? "Berhenti merekam" : "Rekam suara"}
+                  aria-pressed={speech.isListening}
+                  disabled={pending}
+                >
+                  <Mic className={speech.isListening ? "animate-pulse" : ""} />
+                </Button>
+              )}
               <Button
                 type="button"
                 size="icon"
