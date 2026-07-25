@@ -23,7 +23,11 @@ export function FloatingAiAssistant() {
     { role: "assistant", text: "Selamat datang. Ada yang bisa saya bantu untuk agenda hari ini?" },
   ])
   const [history, setHistory] = useState<unknown[]>([])
-  const speech = useSpeechInput((transcript) => setInput((current) => (current ? `${current} ${transcript}` : transcript)))
+  const speech = useSpeechInput((transcript) => {
+    const combined = input ? `${input} ${transcript}` : transcript
+    setInput("")
+    handleSend(combined)
+  })
 
   useEffect(() => {
     fetch("/api/me")
@@ -37,8 +41,8 @@ export function FloatingAiAssistant() {
       .catch(() => {})
   }, [])
 
-  async function handleSend() {
-    const command = input.trim()
+  async function handleSend(overrideCommand?: string) {
+    const command = (overrideCommand ?? input).trim()
     if (!command || pending) return
 
     setMessages((current) => [...current, { role: "user", text: command }])
@@ -174,7 +178,7 @@ export function FloatingAiAssistant() {
                   type="button"
                   size="icon"
                   className="size-10 shrink-0 rounded-full shadow-[0_0_18px_var(--neon-glow)]"
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   aria-label="Kirim perintah floating"
                   disabled={pending}
                 >

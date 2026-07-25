@@ -25,10 +25,14 @@ export function AssistantPage({ userName }: AssistantPageProps) {
   ])
   const [history, setHistory] = useState<unknown[]>([])
   const [pending, setPending] = useState(false)
-  const speech = useSpeechInput((transcript) => setInput((current) => (current ? `${current} ${transcript}` : transcript)))
+  const speech = useSpeechInput((transcript) => {
+    const combined = input ? `${input} ${transcript}` : transcript
+    setInput("")
+    handleSend(combined)
+  })
 
-  async function handleSend() {
-    const command = input.trim()
+  async function handleSend(overrideCommand?: string) {
+    const command = (overrideCommand ?? input).trim()
     if (!command || pending) return
     setMessages((current) => [...current, { role: "user", text: command }])
     setInput("")
@@ -122,7 +126,7 @@ export function AssistantPage({ userName }: AssistantPageProps) {
                   </Button>
                 )}
                 {!speech.isListening && (
-                  <Button size="icon" className="shrink-0 rounded-full" onClick={handleSend} aria-label="Kirim perintah" disabled={pending}>
+                  <Button size="icon" className="shrink-0 rounded-full" onClick={() => handleSend()} aria-label="Kirim perintah" disabled={pending}>
                     <Send />
                   </Button>
                 )}
