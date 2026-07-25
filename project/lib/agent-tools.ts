@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk"
 
-import { jakartaTodayRange } from "@/lib/datetime"
+import { jakartaRangeFromToday, jakartaTodayRange } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 
 export const toolDefinitions: Anthropic.Tool[] = [
@@ -104,6 +104,17 @@ export const toolDefinitions: Anthropic.Tool[] = [
     name: "get_overdue_tasks",
     description: "Mengambil daftar tugas yang sudah melewati deadline dan belum selesai.",
     input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_upcoming_agenda",
+    description:
+      "Mengambil jadwal & tugas (belum selesai) dalam rentang N hari ke depan mulai hari ini — pakai ini untuk pertanyaan seperti 'minggu depan ada apa', 'agenda 3 hari ke depan', dsb. Jangan pakai get_today_tasks untuk pertanyaan rentang tanggal.",
+    input_schema: {
+      type: "object",
+      properties: {
+        days: { type: "number", description: "Jumlah hari ke depan dari hari ini, default 7, maksimal 30" },
+      },
+    },
   },
   {
     name: "create_follow_up",
@@ -249,6 +260,24 @@ async function getOverdueTasks(ctx: ToolContext) {
   return { tasks }
 }
 
+async function getUpcomingAgenda(ctx: ToolContext, input: any) {
+  const days = typeof input?.days === "number" && input.days > 0 ? Math.min(Math.floor(input.days), 30) : 7
+  const { start, end } = jakartaRangeFromToday(days)
+
+  const [schedules, tasks] = await Promise.all([
+    prisma.schedule.findMany({
+      where: { userId: ctx.userId, status: { not: "cancelled" }, startAt: { gte: start, lt: end } },
+      orderBy: { startAt: "asc" },
+    }),
+    prisma.task.findMany({
+      where: { userId: ctx.userId, status: { notIn: ["done"] }, dueDate: { gte: start, lt: end } },
+      orderBy: { dueDate: "asc" },
+    }),
+  ])
+
+  return { rangeDays: days, schedules, tasks }
+}
+
 async function createFollowUp(ctx: ToolContext, input: any) {
   const followUp = await prisma.followUp.create({
     data: {
@@ -299,6 +328,8 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getTodayTasks(ctx)
     case "get_overdue_tasks":
       return getOverdueTasks(ctx)
+    case "get_upcoming_agenda":
+      return getUpcomingAgenda(ctx, input)
     case "create_follow_up":
       return createFollowUp(ctx, input)
     case "generate_daily_brief":

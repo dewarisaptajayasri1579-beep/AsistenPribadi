@@ -63,6 +63,13 @@ export function jakartaCurrentWeek(reference: Date = new Date()) {
   })
 }
 
+/** Rentang dari awal hari ini (Jakarta) sampai N hari ke depan. */
+export function jakartaRangeFromToday(days: number, reference: Date = new Date()) {
+  const { start } = jakartaTodayRange(reference)
+  const end = new Date(start.getTime() + days * 24 * 60 * 60 * 1000)
+  return { start, end }
+}
+
 export function jakartaTodayDateIso(reference: Date = new Date()) {
   const j = new Date(reference.getTime() + JAKARTA_OFFSET_MS)
   return isoOf(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate())
