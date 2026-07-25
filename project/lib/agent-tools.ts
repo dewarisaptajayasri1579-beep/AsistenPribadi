@@ -6,13 +6,15 @@ import { prisma } from "@/lib/prisma"
 export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "create_task",
-    description: "Membuat tugas baru untuk direktur.",
+    description:
+      "Membuat tugas baru untuk direktur. Kalau tugas kemungkinan butuh lebih dari 1 hari untuk dikerjakan, WAJIB tanyakan dulu tanggal mulai (startDate) sebelum memanggil tool ini — jangan asumsikan mulai hari ini.",
     input_schema: {
       type: "object",
       properties: {
         title: { type: "string", description: "Judul tugas" },
         description: { type: "string", description: "Catatan tambahan" },
-        dueDate: { type: "string", description: "Tanggal jatuh tempo, format ISO 8601 (YYYY-MM-DD atau dengan waktu)" },
+        startDate: { type: "string", description: "Tanggal mulai dikerjakan, format ISO 8601 (YYYY-MM-DD)" },
+        dueDate: { type: "string", description: "Tanggal jatuh tempo/selesai, format ISO 8601 (YYYY-MM-DD atau dengan waktu)" },
         priority: { type: "string", enum: ["low", "normal", "high"] },
         category: { type: "string", description: "Kategori tugas, misal: klien, internal, pembayaran" },
       },
@@ -28,6 +30,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
         id: { type: "string" },
         title: { type: "string" },
         description: { type: "string" },
+        startDate: { type: "string" },
         dueDate: { type: "string" },
         priority: { type: "string", enum: ["low", "normal", "high"] },
         status: { type: "string", enum: ["todo", "in_progress", "done", "postponed"] },
@@ -131,6 +134,7 @@ async function createTask(ctx: ToolContext, input: any) {
       userId: ctx.userId,
       title: input.title,
       description: input.description,
+      startDate: input.startDate ? new Date(input.startDate) : undefined,
       dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
       priority: input.priority ?? "normal",
       category: input.category,
@@ -145,6 +149,7 @@ async function updateTask(ctx: ToolContext, input: any) {
     data: {
       title: input.title,
       description: input.description,
+      startDate: input.startDate ? new Date(input.startDate) : undefined,
       dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
       priority: input.priority,
       status: input.status,

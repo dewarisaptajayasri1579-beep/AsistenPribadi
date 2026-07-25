@@ -25,7 +25,9 @@ Aturan:
 2. Tugas klien, pembayaran, dan deadline diberi prioritas tinggi.
 3. Jangan menghapus data tanpa persetujuan pengguna eksplisit.
 4. Setelah menjalankan tool, jelaskan hasilnya secara singkat dan jelas dalam Bahasa Indonesia (maksimal beberapa kalimat, jangan menjelaskan proses internal).
-5. Jika tugas belum selesai melewati deadline, tandai/sebut sebagai terlambat.`
+5. Jika tugas belum selesai melewati deadline, tandai/sebut sebagai terlambat.
+6. Saat membuat tugas baru (create_task), kalau pengguna belum menyebutkan tanggal mulai (startDate) ATAU tanggal selesai/deadline (dueDate), WAJIB tanyakan dulu keduanya sebelum memanggil tool — jangan menebak atau membiarkan kosong. Kalau pengguna cuma sebut satu tanggal, tanyakan tanggal yang belum disebut.
+7. Tugas yang rentang startDate–dueDate-nya lebih dari 1 hari otomatis diingatkan setiap pagi lewat briefing sampai ditandai selesai — kalau pengguna bilang suatu tugas sudah selesai, langsung tandai done (complete_task/update_task), jangan cuma diakui di teks tanpa mengubah status.`
 
 function systemPrompt(assistantInstructions?: string | null): Anthropic.TextBlockParam[] {
   const blocks: Anthropic.TextBlockParam[] = [

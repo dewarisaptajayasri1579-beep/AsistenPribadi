@@ -19,6 +19,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (body.description !== undefined) data.description = body.description
   if (body.priority !== undefined) data.priority = body.priority
   if (body.category !== undefined) data.category = body.category
+  if (body.startDate !== undefined) data.startDate = body.startDate ? new Date(body.startDate) : null
   if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : null
   if (body.status !== undefined) {
     data.status = body.status

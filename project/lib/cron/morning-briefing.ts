@@ -1,12 +1,35 @@
+import { formatJakartaDateLabel, jakartaTodayDateIso, jakartaTodayRange } from "@/lib/datetime"
 import { getWorkspaceOwner } from "@/lib/current-user"
 import { getDashboardData } from "@/lib/dashboard-queries"
 import { prisma } from "@/lib/prisma"
 import { sendPushToUser } from "@/lib/push"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
+// Tugas multi-hari (rentang startDate–dueDate > 1 hari) yang sedang berjalan hari ini —
+// diingatkan tiap pagi sampai ditandai selesai lewat chat AI Assistant.
+async function getOngoingMultiDayTasks(userId: string) {
+  const { start, end } = jakartaTodayRange()
+
+  const candidates = await prisma.task.findMany({
+    where: {
+      userId,
+      status: { notIn: ["done"] },
+      startDate: { not: null, lte: end },
+      dueDate: { not: null, gte: start },
+    },
+    orderBy: { dueDate: "asc" },
+  })
+
+  return candidates.filter((t) => {
+    const span = t.dueDate!.getTime() - t.startDate!.getTime()
+    return span > 24 * 60 * 60 * 1000
+  })
+}
+
 export async function runMorningBriefing() {
   const owner = await getWorkspaceOwner()
   const data = await getDashboardData(owner.id)
+  const ongoingTasks = await getOngoingMultiDayTasks(owner.id)
 
   const lines = [`Selamat pagi! Berikut ringkasan hari ini:`, ``]
 
@@ -25,6 +48,14 @@ export async function runMorningBriefing() {
   } else {
     lines.push("Prioritas:")
     data.priorities.forEach((p, i) => lines.push(`${i + 1}. ${p.title}`))
+  }
+
+  if (ongoingTasks.length > 0) {
+    lines.push("")
+    lines.push("Tugas sedang berjalan:")
+    ongoingTasks.forEach((t) =>
+      lines.push(`- ${t.title} (target selesai ${formatJakartaDateLabel(jakartaTodayDateIso(t.dueDate!))})`)
+    )
   }
 
   if (data.report.overdueFollowUps.length > 0) {

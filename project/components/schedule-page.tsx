@@ -11,7 +11,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 type AgendaItem = { id: string; time: string; title: string; location: string }
-type TaskItem = { id: string; title: string; description: string | null; priority: string; status: string }
+type TaskItem = {
+  id: string
+  title: string
+  description: string | null
+  priority: string
+  status: string
+  startDate: string | null
+  dueDate: string | null
+}
 type WeekDay = { label: string; date: number; month: number; year: number; iso: string; isToday: boolean }
 
 interface SchedulePageProps {
@@ -215,6 +223,13 @@ export function SchedulePage({
                             </span>
                             {task.description && (
                               <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{task.description}</span>
+                            )}
+                            {(task.startDate || task.dueDate) && (
+                              <span className="mt-1 block text-xs text-muted-foreground">
+                                {task.startDate ? `Mulai ${task.startDate}` : ""}
+                                {task.startDate && task.dueDate ? " · " : ""}
+                                {task.dueDate ? `Selesai ${task.dueDate}` : ""}
+                              </span>
                             )}
                           </span>
                         </button>

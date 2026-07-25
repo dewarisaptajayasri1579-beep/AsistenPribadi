@@ -52,6 +52,8 @@ export default async function Page({ searchParams }: PageProps) {
         description: t.description,
         priority: t.priority,
         status: t.status,
+        startDate: t.startDate ? formatJakartaDateLabel(jakartaTodayDateIso(t.startDate)) : null,
+        dueDate: t.dueDate ? formatJakartaDateLabel(jakartaTodayDateIso(t.dueDate)) : null,
       }))}
       weekDays={jakartaCurrentWeek(parseJakartaDateIso(selectedDateIso))}
       selectedDateIso={selectedDateIso}

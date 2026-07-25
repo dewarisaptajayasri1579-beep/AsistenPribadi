@@ -31,6 +31,7 @@ export async function POST(request: Request) {
       userId: owner.id,
       title: body.title,
       description: body.description,
+      startDate: body.startDate ? new Date(body.startDate) : undefined,
       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
       priority: body.priority ?? "normal",
       category: body.category,
