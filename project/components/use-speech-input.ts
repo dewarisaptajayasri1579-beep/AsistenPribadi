@@ -13,6 +13,7 @@ export function useSpeechInput(onResult: (text: string) => void) {
   const recognitionRef = useRef<any>(null)
   const onResultRef = useRef(onResult)
   onResultRef.current = onResult
+  const accumulatedRef = useRef("")
 
   const streamRef = useRef<MediaStream | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
@@ -37,14 +38,28 @@ export function useSpeechInput(onResult: (text: string) => void) {
 
     const recognition = new SpeechRecognition()
     recognition.lang = "id-ID"
-    recognition.continuous = false
+    // continuous:true supaya tidak otomatis berhenti pas ada jeda sebentar di tengah kalimat —
+    // baru berhenti kalau user klik tombol stop sendiri (atau browser benar-benar timeout lama).
+    recognition.continuous = true
     recognition.interimResults = false
 
     recognition.onresult = (event: any) => {
-      const transcript = event.results?.[0]?.[0]?.transcript
-      if (transcript) onResultRef.current(transcript)
+      let finalChunk = ""
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) finalChunk += event.results[i][0].transcript
+      }
+      finalChunk = finalChunk.trim()
+      if (finalChunk) {
+        accumulatedRef.current = accumulatedRef.current ? `${accumulatedRef.current} ${finalChunk}` : finalChunk
+      }
     }
-    recognition.onend = () => stopMeter()
+    recognition.onend = () => {
+      if (accumulatedRef.current) {
+        onResultRef.current(accumulatedRef.current)
+        accumulatedRef.current = ""
+      }
+      stopMeter()
+    }
     recognition.onerror = () => stopMeter()
 
     recognitionRef.current = recognition
