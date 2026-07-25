@@ -12,6 +12,7 @@ import { quickActions } from "@/lib/dashboard-data"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useSpeechInput } from "@/components/use-speech-input"
+import { VoiceRecordingBar } from "@/components/voice-recording-bar"
 
 const quickActionIcons = [CalendarDays, ListTodo, Bell]
 
@@ -109,33 +110,39 @@ export function AiAssistantPanel({ userName }: AiAssistantPanelProps) {
 
       <div className="flex flex-col gap-2 pt-4">
         <div className="flex items-center gap-2 rounded-2xl border border-input bg-secondary/30 p-2 focus-within:ring-2 focus-within:ring-ring/50">
-          <Input
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.nativeEvent.isComposing || event.keyCode === 229) return
-              if (event.key === "Enter") handleSend()
-            }}
-            className="h-10 border-0 bg-transparent px-2 text-sm shadow-none focus-visible:ring-0"
-            placeholder="Ketik perintah Anda..."
-            aria-label="Perintah untuk AI Assistant"
-          />
-          {speech.isSupported && (
+          {speech.isListening ? (
+            <VoiceRecordingBar level={speech.level} onStop={speech.toggle} />
+          ) : (
+            <Input
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.keyCode === 229) return
+                if (event.key === "Enter") handleSend()
+              }}
+              className="h-10 border-0 bg-transparent px-2 text-sm shadow-none focus-visible:ring-0"
+              placeholder="Ketik perintah Anda..."
+              aria-label="Perintah untuk AI Assistant"
+            />
+          )}
+          {speech.isSupported && !speech.isListening && (
             <Button
               type="button"
               size="icon"
-              variant={speech.isListening ? "default" : "ghost"}
+              variant="ghost"
               className="shrink-0 rounded-full"
               onClick={speech.toggle}
-              aria-label={speech.isListening ? "Berhenti merekam" : "Rekam suara"}
+              aria-label="Rekam suara"
               aria-pressed={speech.isListening}
             >
-              <Mic className={speech.isListening ? "animate-pulse" : ""} />
+              <Mic />
             </Button>
           )}
-          <Button size="icon" className="shrink-0 rounded-full" onClick={handleSend} aria-label="Kirim perintah">
-            <Send />
-          </Button>
+          {!speech.isListening && (
+            <Button size="icon" className="shrink-0 rounded-full" onClick={handleSend} aria-label="Kirim perintah">
+              <Send />
+            </Button>
+          )}
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
           Contoh: “Ingatkan saya follow-up Yamada-san”

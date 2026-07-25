@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { quickActions } from "@/lib/dashboard-data"
 import { useSpeechInput } from "@/components/use-speech-input"
+import { VoiceRecordingBar } from "@/components/voice-recording-bar"
 
 interface FloatingMessage {
   role: "assistant" | "user"
@@ -138,42 +139,48 @@ export function FloatingAiAssistant() {
 
           <div className="p-3 pt-0">
             <div className="flex items-center gap-2 rounded-2xl border border-primary/25 bg-secondary/35 p-2 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/30">
-              <Input
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.nativeEvent.isComposing || event.keyCode === 229) return
-                  if (event.key === "Enter") handleSend()
-                }}
-                className="h-10 border-0 bg-transparent px-2 text-sm shadow-none focus-visible:ring-0"
-                placeholder="Ketik perintah Anda..."
-                aria-label="Perintah untuk floating AI Assistant"
-                disabled={pending}
-              />
-              {speech.isSupported && (
+              {speech.isListening ? (
+                <VoiceRecordingBar level={speech.level} onStop={speech.toggle} />
+              ) : (
+                <Input
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.nativeEvent.isComposing || event.keyCode === 229) return
+                    if (event.key === "Enter") handleSend()
+                  }}
+                  className="h-10 border-0 bg-transparent px-2 text-sm shadow-none focus-visible:ring-0"
+                  placeholder="Ketik perintah Anda..."
+                  aria-label="Perintah untuk floating AI Assistant"
+                  disabled={pending}
+                />
+              )}
+              {speech.isSupported && !speech.isListening && (
                 <Button
                   type="button"
                   size="icon"
-                  variant={speech.isListening ? "default" : "ghost"}
+                  variant="ghost"
                   className="size-10 shrink-0 rounded-full"
                   onClick={speech.toggle}
-                  aria-label={speech.isListening ? "Berhenti merekam" : "Rekam suara"}
+                  aria-label="Rekam suara"
                   aria-pressed={speech.isListening}
                   disabled={pending}
                 >
-                  <Mic className={speech.isListening ? "animate-pulse" : ""} />
+                  <Mic />
                 </Button>
               )}
-              <Button
-                type="button"
-                size="icon"
-                className="size-10 shrink-0 rounded-full shadow-[0_0_18px_var(--neon-glow)]"
-                onClick={handleSend}
-                aria-label="Kirim perintah floating"
-                disabled={pending}
-              >
-                <Send />
-              </Button>
+              {!speech.isListening && (
+                <Button
+                  type="button"
+                  size="icon"
+                  className="size-10 shrink-0 rounded-full shadow-[0_0_18px_var(--neon-glow)]"
+                  onClick={handleSend}
+                  aria-label="Kirim perintah floating"
+                  disabled={pending}
+                >
+                  <Send />
+                </Button>
+              )}
             </div>
           </div>
         </section>
