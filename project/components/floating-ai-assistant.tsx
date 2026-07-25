@@ -70,7 +70,7 @@ export function FloatingAiAssistant() {
       {open && (
         <section
           aria-label="AI Assistant floating"
-          className="flex h-[min(580px,calc(100vh-100px))] w-[min(390px,calc(100vw-24px))] flex-col overflow-hidden rounded-3xl border border-primary/35 bg-popover shadow-[0_0_48px_-16px_var(--neon-glow),0_24px_70px_-28px_oklch(0_0_0/90%)]"
+          className="flex h-[min(580px,calc(100dvh-100px))] w-[min(390px,calc(100vw-24px))] flex-col overflow-hidden rounded-3xl border border-primary/35 bg-popover shadow-[0_0_48px_-16px_var(--neon-glow),0_24px_70px_-28px_oklch(0_0_0/90%)]"
         >
           <header className="flex items-center justify-between gap-3 border-b border-primary/20 px-4 py-3.5">
             <div className="flex min-w-0 items-center gap-3">

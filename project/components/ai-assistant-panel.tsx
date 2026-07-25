@@ -59,7 +59,7 @@ export function AiAssistantPanel({ userName }: AiAssistantPanelProps) {
   }
 
   return (
-    <aside className="glass-card flex min-h-[560px] w-full shrink-0 flex-col rounded-[18px] p-4 sm:p-5 min-[1400px]:sticky min-[1400px]:top-6 min-[1400px]:h-[calc(100vh-48px)] min-[1400px]:w-[340px]">
+    <aside className="glass-card flex min-h-[560px] w-full shrink-0 flex-col rounded-[18px] p-4 sm:p-5 min-[1400px]:sticky min-[1400px]:top-6 min-[1400px]:h-[calc(100dvh-48px)] min-[1400px]:w-[340px]">
       <header className="flex items-center gap-3 pb-5">
         <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
           <Bot className="size-5" aria-hidden="true" />

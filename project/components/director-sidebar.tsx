@@ -109,7 +109,7 @@ export function DirectorSidebar({ collapsed, onToggle, userName, userRole }: Dir
 
       <aside
         className={cn(
-          "glass-card sticky top-6 hidden h-[calc(100vh-48px)] shrink-0 flex-col rounded-[18px] transition-[width] duration-300 ease-out lg:flex",
+          "glass-card sticky top-6 hidden h-[calc(100dvh-48px)] shrink-0 flex-col rounded-[18px] transition-[width] duration-300 ease-out lg:flex",
           collapsed ? "w-20" : "w-60"
         )}
       >
