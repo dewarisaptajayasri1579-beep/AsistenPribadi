@@ -39,7 +39,7 @@ export function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+    <main className="flex min-h-dvh items-center justify-center bg-background p-4">
       <Card className="glass-card w-full max-w-sm border-0 ring-0">
         <CardHeader className="items-center text-center">
           <div className="mb-2 grid size-12 grid-cols-2 gap-1 rounded-xl border border-primary/30 bg-primary/15 p-2 shadow-[0_0_22px_var(--neon-glow)]" aria-hidden="true">

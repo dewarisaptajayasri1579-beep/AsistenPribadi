@@ -26,7 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-background p-3 sm:p-5 lg:p-6">
+    <main className="min-h-dvh overflow-x-hidden bg-background p-3 sm:p-5 lg:p-6">
       <div className="mx-auto flex max-w-[1600px] flex-col items-stretch gap-4 lg:flex-row lg:items-start lg:gap-5">
         <DirectorSidebar
           collapsed={sidebarCollapsed}
