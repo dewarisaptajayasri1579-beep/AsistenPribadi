@@ -24,10 +24,17 @@ export default async function Page({ searchParams }: PageProps) {
   const selectedDateIso = params.date && /^\d{4}-\d{2}-\d{2}$/.test(params.date) ? params.date : todayIso
 
   const { start, end } = jakartaTodayRange(parseJakartaDateIso(selectedDateIso))
+  const weekDays = jakartaCurrentWeek(parseJakartaDateIso(selectedDateIso))
+  const weekStart = jakartaTodayRange(parseJakartaDateIso(weekDays[0].iso)).start
+  const weekEnd = jakartaTodayRange(parseJakartaDateIso(weekDays[6].iso)).end
 
-  const [daySchedules, tasks, followUps] = await Promise.all([
+  const [daySchedules, weekSchedules, tasks, followUps] = await Promise.all([
     prisma.schedule.findMany({
       where: { userId: owner.id, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
+      orderBy: { startAt: "asc" },
+    }),
+    prisma.schedule.findMany({
+      where: { userId: owner.id, startAt: { gte: weekStart, lt: weekEnd }, status: { not: "cancelled" } },
       orderBy: { startAt: "asc" },
     }),
     prisma.task.findMany({
@@ -46,6 +53,29 @@ export default async function Page({ searchParams }: PageProps) {
     title: s.title,
     location: s.location ?? "-",
   }))
+
+  const weekItems = [
+    ...weekSchedules.map((s) => ({
+      id: s.id,
+      title: s.title,
+      type: "jadwal" as const,
+      priority: null,
+      dateIso: jakartaTodayDateIso(s.startAt),
+      dateLabel: formatJakartaDateLabel(jakartaTodayDateIso(s.startAt)),
+      time: formatJakartaTime(s.startAt),
+    })),
+    ...tasks
+      .filter((t) => t.dueDate && t.dueDate >= weekStart && t.dueDate < weekEnd)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        type: "tugas" as const,
+        priority: t.priority,
+        dateIso: jakartaTodayDateIso(t.dueDate!),
+        dateLabel: formatJakartaDateLabel(jakartaTodayDateIso(t.dueDate!)),
+        time: null,
+      })),
+  ].sort((a, b) => a.dateIso.localeCompare(b.dateIso) || (a.time ?? "").localeCompare(b.time ?? ""))
 
   return (
     <SchedulePage
@@ -67,7 +97,8 @@ export default async function Page({ searchParams }: PageProps) {
         status: f.status,
         dueDate: f.dueDate ? formatJakartaDateLabel(jakartaTodayDateIso(f.dueDate)) : null,
       }))}
-      weekDays={jakartaCurrentWeek(parseJakartaDateIso(selectedDateIso))}
+      weekItems={weekItems}
+      weekDays={weekDays}
       selectedDateIso={selectedDateIso}
       selectedDateLabel={formatJakartaDateLabel(selectedDateIso)}
       prevDateIso={shiftJakartaDateIso(selectedDateIso, -1)}

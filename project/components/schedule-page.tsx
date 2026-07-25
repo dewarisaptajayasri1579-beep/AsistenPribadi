@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, Circle, Clock3, MapPin, Plus, UserRound } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, Circle, Clock3, MapPin, Plus, Table2, UserRound } from "lucide-react"
 
 import { AiCommandDialog } from "@/components/ai-command-dialog"
 import { AppShell } from "@/components/app-shell"
@@ -29,11 +29,20 @@ type FollowUpItem = {
   dueDate: string | null
 }
 type WeekDay = { label: string; date: number; month: number; year: number; iso: string; isToday: boolean }
+type WeekItem = {
+  id: string
+  title: string
+  type: "tugas" | "jadwal"
+  priority: string | null
+  dateLabel: string
+  time: string | null
+}
 
 interface SchedulePageProps {
   agenda: AgendaItem[]
   tasks: TaskItem[]
   followUps: FollowUpItem[]
+  weekItems: WeekItem[]
   weekDays: WeekDay[]
   selectedDateIso: string
   selectedDateLabel: string
@@ -51,6 +60,7 @@ export function SchedulePage({
   agenda,
   tasks,
   followUps,
+  weekItems,
   weekDays,
   selectedDateIso,
   selectedDateLabel,
@@ -66,6 +76,7 @@ export function SchedulePage({
   const [followUpList, setFollowUpList] = useState(followUps)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [pendingIds, setPendingIds] = useState<string[]>([])
+  const [view, setView] = useState<"calendar" | "table">("calendar")
 
   function goToDate(dateIso: string) {
     router.push(`/jadwal?date=${dateIso}`)
@@ -124,10 +135,34 @@ export function SchedulePage({
           description="Lihat agenda hari ini dan pantau tugas yang perlu diselesaikan."
           icon={CalendarDays}
           action={
-            <Button className="self-start rounded-xl" onClick={() => setDialogOpen(true)}>
-              <Plus data-icon="inline-start" />
-              Tambah Agenda
-            </Button>
+            <div className="flex flex-wrap items-center gap-2 self-start">
+              <div className="flex items-center gap-1 rounded-xl border border-border bg-secondary/25 p-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={view === "calendar" ? "secondary" : "ghost"}
+                  className="h-8 rounded-lg px-3 text-xs"
+                  onClick={() => setView("calendar")}
+                >
+                  <CalendarDays data-icon="inline-start" className="size-3.5" />
+                  Kalender
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={view === "table" ? "secondary" : "ghost"}
+                  className="h-8 rounded-lg px-3 text-xs"
+                  onClick={() => setView("table")}
+                >
+                  <Table2 data-icon="inline-start" className="size-3.5" />
+                  Tabel
+                </Button>
+              </div>
+              <Button className="rounded-xl" onClick={() => setDialogOpen(true)}>
+                <Plus data-icon="inline-start" />
+                Tambah Agenda
+              </Button>
+            </div>
           }
         />
 
@@ -171,6 +206,60 @@ export function SchedulePage({
           </CardContent>
         </Card>
 
+        {view === "table" && (
+          <Card className="glass-card border-0 ring-0">
+            <CardHeader>
+              <CardTitle>Semua Tugas & Jadwal Minggu Ini</CardTitle>
+              <CardDescription>Gabungan tugas dan jadwal, urut dari tanggal terdekat.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {weekItems.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">Tidak ada tugas atau jadwal minggu ini.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                        <th className="py-2 pr-3 font-medium">Pekerjaan</th>
+                        <th className="py-2 pr-3 font-medium">Prioritas</th>
+                        <th className="py-2 font-medium">Tanggal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {weekItems.map((item) => (
+                        <tr key={`${item.type}-${item.id}`} className="border-b border-border/60 last:border-0">
+                          <td className="py-2.5 pr-3">
+                            <span className="flex items-center gap-2">
+                              <span
+                                className={
+                                  item.type === "jadwal"
+                                    ? "shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-medium text-primary"
+                                    : "shrink-0 rounded-full bg-secondary/60 px-2 py-0.5 text-[10px] font-medium text-foreground/70"
+                                }
+                              >
+                                {item.type === "jadwal" ? "Jadwal" : "Tugas"}
+                              </span>
+                              <span className="font-medium">{item.title}</span>
+                            </span>
+                          </td>
+                          <td className="py-2.5 pr-3 text-muted-foreground">
+                            {item.priority ? (priorityLabel[item.priority] ?? item.priority) : "-"}
+                          </td>
+                          <td className="py-2.5 text-muted-foreground">
+                            {item.dateLabel}
+                            {item.time ? ` · ${item.time}` : ""}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {view === "calendar" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)] xl:gap-5">
           <Card className="glass-card border-0 ring-0">
             <CardHeader className="flex flex-row items-center justify-between gap-3">
@@ -328,6 +417,7 @@ export function SchedulePage({
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
 
       <AiCommandDialog
