@@ -27,6 +27,12 @@ export async function runEveningEvaluation() {
     data.overdueFollowUps.forEach((f) => lines.push(`- ${f}`))
   }
 
+  if (data.pendingFollowUps.length > 0) {
+    lines.push("")
+    lines.push("Menunggu konfirmasi tanggal:")
+    data.pendingFollowUps.forEach((f) => lines.push(`- ${f}`))
+  }
+
   lines.push("")
   lines.push("Tugas yang belum selesai otomatis bisa dilanjutkan besok — cek menu Jadwal & Tugas.")
 

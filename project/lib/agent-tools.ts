@@ -118,13 +118,14 @@ export const toolDefinitions: Anthropic.Tool[] = [
   },
   {
     name: "create_follow_up",
-    description: "Membuat catatan follow-up terhadap klien/rekan/tim.",
+    description:
+      "Membuat catatan follow-up terhadap klien/rekan/tim. Kalau pengguna belum tahu/belum pasti tanggalnya, biarkan dueDate kosong (JANGAN menebak) — follow-up tanpa dueDate tetap otomatis diingatkan tiap briefing sampai ada kepastian.",
     input_schema: {
       type: "object",
       properties: {
         title: { type: "string" },
         relatedPerson: { type: "string" },
-        dueDate: { type: "string" },
+        dueDate: { type: "string", description: "Opsional — kosongkan kalau tanggalnya belum pasti." },
         notes: { type: "string" },
       },
       required: ["title"],

@@ -14,24 +14,34 @@ export async function getDailyReportData(userId: string) {
   const tomorrowStart = end
   const tomorrowEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000)
 
-  const [todaySchedules, doneToday, undoneTasks, highPriorityTasks, overdueFollowUps, tomorrowSchedules] =
-    await Promise.all([
-      prisma.schedule.findMany({
-        where: { userId, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
-        orderBy: { startAt: "asc" },
-      }),
-      prisma.task.count({ where: { userId, status: "done", completedAt: { gte: start, lt: end } } }),
-      prisma.task.findMany({ where: { userId, status: { notIn: ["done"] } }, orderBy: { dueDate: "asc" } }),
-      prisma.task.findMany({
-        where: { userId, priority: "high", status: { notIn: ["done"] } },
-        orderBy: { dueDate: "asc" },
-      }),
-      prisma.followUp.findMany({ where: { userId, status: "open", dueDate: { lt: start } } }),
-      prisma.schedule.findMany({
-        where: { userId, startAt: { gte: tomorrowStart, lt: tomorrowEnd }, status: { not: "cancelled" } },
-        orderBy: { startAt: "asc" },
-      }),
-    ])
+  const [
+    todaySchedules,
+    doneToday,
+    undoneTasks,
+    highPriorityTasks,
+    overdueFollowUps,
+    pendingFollowUps,
+    tomorrowSchedules,
+  ] = await Promise.all([
+    prisma.schedule.findMany({
+      where: { userId, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
+      orderBy: { startAt: "asc" },
+    }),
+    prisma.task.count({ where: { userId, status: "done", completedAt: { gte: start, lt: end } } }),
+    prisma.task.findMany({ where: { userId, status: { notIn: ["done"] } }, orderBy: { dueDate: "asc" } }),
+    prisma.task.findMany({
+      where: { userId, priority: "high", status: { notIn: ["done"] } },
+      orderBy: { dueDate: "asc" },
+    }),
+    prisma.followUp.findMany({ where: { userId, status: "open", dueDate: { lt: start } } }),
+    // Follow-up terbuka tanpa tanggal (mis. masih tunggu konfirmasi pihak lain) — tidak pernah
+    // "overdue" karena tidak ada dueDate, jadi harus dimunculkan terpisah supaya tidak terlupakan.
+    prisma.followUp.findMany({ where: { userId, status: "open", dueDate: null } }),
+    prisma.schedule.findMany({
+      where: { userId, startAt: { gte: tomorrowStart, lt: tomorrowEnd }, status: { not: "cancelled" } },
+      orderBy: { startAt: "asc" },
+    }),
+  ])
 
   const activities = todaySchedules.map((s) => ({
     id: s.id,
@@ -49,6 +59,7 @@ export async function getDailyReportData(userId: string) {
     },
     activities,
     overdueFollowUps: overdueFollowUps.map((f) => f.title),
+    pendingFollowUps: pendingFollowUps.map((f) => f.title),
     tomorrowFocus: {
       schedules: tomorrowSchedules.map((s) => ({ time: formatJakartaTime(s.startAt), title: s.title })),
       highPriorityTasks: highPriorityTasks.slice(0, 5).map((t) => t.title),

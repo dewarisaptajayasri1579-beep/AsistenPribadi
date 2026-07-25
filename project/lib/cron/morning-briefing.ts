@@ -64,6 +64,12 @@ export async function runMorningBriefing() {
     data.report.overdueFollowUps.forEach((f) => lines.push(`- ${f}`))
   }
 
+  if (data.report.pendingFollowUps.length > 0) {
+    lines.push("")
+    lines.push("Menunggu konfirmasi tanggal:")
+    data.report.pendingFollowUps.forEach((f) => lines.push(`- ${f}`))
+  }
+
   const message = lines.join("\n")
 
   const recipients = await prisma.user.findMany({
