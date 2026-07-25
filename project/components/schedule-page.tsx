@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, Circle, Clock3, MapPin, Plus } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle2, Circle, Clock3, MapPin, Plus, UserRound } from "lucide-react"
 
 import { AiCommandDialog } from "@/components/ai-command-dialog"
 import { AppShell } from "@/components/app-shell"
@@ -20,11 +20,20 @@ type TaskItem = {
   startDate: string | null
   dueDate: string | null
 }
+type FollowUpItem = {
+  id: string
+  title: string
+  relatedPerson: string | null
+  notes: string | null
+  status: string
+  dueDate: string | null
+}
 type WeekDay = { label: string; date: number; month: number; year: number; iso: string; isToday: boolean }
 
 interface SchedulePageProps {
   agenda: AgendaItem[]
   tasks: TaskItem[]
+  followUps: FollowUpItem[]
   weekDays: WeekDay[]
   selectedDateIso: string
   selectedDateLabel: string
@@ -41,6 +50,7 @@ const priorityLabel: Record<string, string> = { high: "Tinggi", normal: "Sedang"
 export function SchedulePage({
   agenda,
   tasks,
+  followUps,
   weekDays,
   selectedDateIso,
   selectedDateLabel,
@@ -53,6 +63,7 @@ export function SchedulePage({
 }: SchedulePageProps) {
   const router = useRouter()
   const [taskList, setTaskList] = useState(tasks)
+  const [followUpList, setFollowUpList] = useState(followUps)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [pendingIds, setPendingIds] = useState<string[]>([])
 
@@ -61,6 +72,7 @@ export function SchedulePage({
   }
 
   const doneCount = taskList.filter((t) => t.status === "done").length
+  const doneFollowUpCount = followUpList.filter((f) => f.status === "done").length
 
   async function toggleTask(task: TaskItem) {
     if (pendingIds.includes(task.id)) return
@@ -80,6 +92,27 @@ export function SchedulePage({
       setTaskList((current) => current.map((t) => (t.id === task.id ? { ...t, status: task.status } : t)))
     } finally {
       setPendingIds((current) => current.filter((id) => id !== task.id))
+    }
+  }
+
+  async function toggleFollowUp(followUp: FollowUpItem) {
+    if (pendingIds.includes(followUp.id)) return
+    const nextStatus = followUp.status === "done" ? "open" : "done"
+
+    setPendingIds((current) => [...current, followUp.id])
+    setFollowUpList((current) => current.map((f) => (f.id === followUp.id ? { ...f, status: nextStatus } : f)))
+
+    try {
+      const res = await fetch(`/api/follow-ups/${followUp.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      if (!res.ok) throw new Error("failed")
+    } catch {
+      setFollowUpList((current) => current.map((f) => (f.id === followUp.id ? { ...f, status: followUp.status } : f)))
+    } finally {
+      setPendingIds((current) => current.filter((id) => id !== followUp.id))
     }
   }
 
@@ -231,6 +264,60 @@ export function SchedulePage({
                                 {task.dueDate ? `Selesai ${task.dueDate}` : ""}
                               </span>
                             )}
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card border-0 ring-0 lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Follow-up</CardTitle>
+              <CardDescription>
+                {doneFollowUpCount} dari {followUpList.length} selesai
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {followUpList.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">Belum ada follow-up.</p>
+              ) : (
+                <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {followUpList.map((followUp) => {
+                    const completed = followUp.status === "done"
+                    return (
+                      <li key={followUp.id}>
+                        <button
+                          type="button"
+                          onClick={() => toggleFollowUp(followUp)}
+                          aria-pressed={completed}
+                          className="flex w-full items-start gap-3 rounded-xl border border-border bg-secondary/25 p-3 text-left transition-colors hover:border-primary/30 disabled:opacity-60"
+                          disabled={pendingIds.includes(followUp.id)}
+                        >
+                          {completed ? (
+                            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
+                          ) : (
+                            <Circle className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className={completed ? "block font-medium text-muted-foreground line-through" : "block font-medium"}>
+                              {followUp.title}
+                            </span>
+                            {followUp.relatedPerson && (
+                              <span className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                                <UserRound className="size-3.5" aria-hidden="true" />
+                                {followUp.relatedPerson}
+                              </span>
+                            )}
+                            {followUp.notes && (
+                              <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{followUp.notes}</span>
+                            )}
+                            <span className="mt-1 block text-xs text-muted-foreground">
+                              {followUp.dueDate ? `Target: ${followUp.dueDate}` : "Menunggu konfirmasi tanggal"}
+                            </span>
                           </span>
                         </button>
                       </li>

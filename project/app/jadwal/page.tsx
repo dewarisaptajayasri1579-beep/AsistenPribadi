@@ -25,12 +25,16 @@ export default async function Page({ searchParams }: PageProps) {
 
   const { start, end } = jakartaTodayRange(parseJakartaDateIso(selectedDateIso))
 
-  const [daySchedules, tasks] = await Promise.all([
+  const [daySchedules, tasks, followUps] = await Promise.all([
     prisma.schedule.findMany({
       where: { userId: owner.id, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
       orderBy: { startAt: "asc" },
     }),
     prisma.task.findMany({
+      where: { userId: owner.id },
+      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+    }),
+    prisma.followUp.findMany({
       where: { userId: owner.id },
       orderBy: [{ status: "asc" }, { dueDate: "asc" }],
     }),
@@ -54,6 +58,14 @@ export default async function Page({ searchParams }: PageProps) {
         status: t.status,
         startDate: t.startDate ? formatJakartaDateLabel(jakartaTodayDateIso(t.startDate)) : null,
         dueDate: t.dueDate ? formatJakartaDateLabel(jakartaTodayDateIso(t.dueDate)) : null,
+      }))}
+      followUps={followUps.map((f) => ({
+        id: f.id,
+        title: f.title,
+        relatedPerson: f.relatedPerson,
+        notes: f.notes,
+        status: f.status,
+        dueDate: f.dueDate ? formatJakartaDateLabel(jakartaTodayDateIso(f.dueDate)) : null,
       }))}
       weekDays={jakartaCurrentWeek(parseJakartaDateIso(selectedDateIso))}
       selectedDateIso={selectedDateIso}
