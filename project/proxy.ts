@@ -9,6 +9,8 @@ export function proxy(request: NextRequest) {
   const isPublic =
     PUBLIC_PATHS.includes(pathname) ||
     pathname.startsWith("/api/auth/") ||
+    // Dipanggil server WAHUB, bukan browser kita — diproteksi secret sendiri di dalam route-nya.
+    pathname === "/api/whatsapp/webhook" ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon")
 

@@ -32,8 +32,22 @@ model User {
   sessions               Session[]
   pushSubscriptions      PushSubscription[]
   recurringSchedules     RecurringSchedule[]
+  whatsappThread         WhatsappThread?
 
   @@map("users")
+}
+
+/// Konteks percakapan AI Agent per nomor WhatsApp — supaya pertanyaan lanjutan ("ya hapus
+/// saja") tetap nyambung walau tiap webhook WAHUB masuk sebagai request terpisah. Direset
+/// otomatis kalau sudah idle lama (lihat WHATSAPP_THREAD_IDLE_MS di lib/whatsapp-webhook.ts).
+model WhatsappThread {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  history   Json
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("whatsapp_threads")
 }
 
 model PushSubscription {

@@ -29,6 +29,43 @@ Inisialisasi sesi WhatsApp baru. Setelah memanggil ini, gunakan endpoint QR untu
 ```
 `webhookUrl` bersifat opsional.
 
+### `POST /api/sessions/webhook` *(ditambahkan khusus untuk Director Daily Assistant)*
+
+Update `webhookUrl` sesi yang **sudah aktif/READY** tanpa restart atau logout — `POST /api/sessions/start` tidak bisa dipakai untuk ini karena jadi no-op kalau sesinya sudah jalan.
+
+**Body:**
+```json
+{ "webhookUrl": "https://assistant.onyseven.com/api/whatsapp/webhook?secret=WAHUB_WEBHOOK_SECRET" }
+```
+
+Panggil sekali saja (cukup dari terminal/Postman, bukan dari kode aplikasi) untuk mengaktifkan fitur "chat AI Assistant lewat WhatsApp":
+```bash
+curl -X POST https://backend-wahub.onyseven.com/api/sessions/webhook \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_CLIENT_API_KEY" \
+  -d '{ "webhookUrl": "https://assistant.onyseven.com/api/whatsapp/webhook?secret=WAHUB_WEBHOOK_SECRET" }'
+```
+Ganti `WAHUB_WEBHOOK_SECRET` dengan nilai env var yang sama di Coolify.
+
+### Webhook pesan masuk (format payload dari WAHUB ke `webhookUrl`)
+
+Setiap ada pesan WhatsApp masuk/keluar di sesi ini, WAHUB POST payload berikut ke `webhookUrl`:
+```json
+{
+  "sessionId": "clientId-default",
+  "message": {
+    "from": "628xxxxxxxxx@s.whatsapp.net",
+    "to": "me",
+    "body": "isi pesannya",
+    "type": "conversation",
+    "hasMedia": false,
+    "timestamp": 1735000000
+  }
+}
+```
+- `to: "me"` berarti pesan ini benar-benar **masuk** dari orang lain (bukan pesan yang kita kirim sendiri) — Director Daily Assistant memakai field ini untuk membedakan, supaya balasan bot sendiri tidak diproses ulang.
+- Tidak ada header autentikasi di request webhook ini — proteksinya lewat query param `?secret=...` yang kita tentukan sendiri di `webhookUrl`.
+
 ### `GET /api/sessions/qr`
 
 Mengembalikan tag `<img>` HTML berisi QR Code untuk login WhatsApp Web.
