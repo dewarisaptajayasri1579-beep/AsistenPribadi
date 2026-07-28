@@ -1,6 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk"
 
-import { jakartaRangeFromToday, jakartaTodayDateIso, jakartaTodayRange, parseJakartaDateIso } from "@/lib/datetime"
+import { formatJakartaTime, jakartaRangeFromToday, jakartaTodayDateIso, jakartaTodayRange, parseJakartaDateIso } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { materializeOccurrences, RECURRING_HORIZON_WEEKS } from "@/lib/recurring-schedule"
 
@@ -284,7 +284,14 @@ async function createSchedule(ctx: ToolContext, input: any) {
       notes: input.notes,
     },
   })
-  return { created: true, schedule }
+  // startAt/endAt di objek schedule tersimpan UTC (offset Z) — field label ini sudah dikonversi
+  // ke WIB, supaya AI mengutip ini ke pengguna alih-alih menghitung sendiri dari ISO mentah.
+  return {
+    created: true,
+    schedule,
+    startAtLabel: `${formatJakartaTime(schedule.startAt)} WIB`,
+    endAtLabel: `${formatJakartaTime(schedule.endAt!)} WIB`,
+  }
 }
 
 async function createRecurringSchedule(ctx: ToolContext, input: any) {
