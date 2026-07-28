@@ -10,6 +10,12 @@ export async function POST(request: Request) {
   const secret = url.searchParams.get("secret")
 
   if (!process.env.WAHUB_WEBHOOK_SECRET || secret !== process.env.WAHUB_WEBHOOK_SECRET) {
+    console.warn(
+      "[whatsapp webhook] 401: secret tidak cocok. Secret di query:",
+      secret ? `${secret.slice(0, 4)}...(${secret.length} char)` : "(kosong)",
+      "— env WAHUB_WEBHOOK_SECRET ter-set:",
+      !!process.env.WAHUB_WEBHOOK_SECRET
+    )
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 

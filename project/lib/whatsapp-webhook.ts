@@ -33,18 +33,34 @@ async function findRegisteredSender(rawNumber: string) {
 
 export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   const message = payload.message
-  if (!message?.from) return { skipped: "no message" }
+  console.log("[whatsapp webhook] payload masuk:", JSON.stringify(payload))
+
+  if (!message?.from) {
+    console.log("[whatsapp webhook] skip: no message")
+    return { skipped: "no message" }
+  }
 
   // Baileys mengirim webhook untuk pesan masuk MAUPUN keluar (termasuk balasan bot sendiri).
   // "to" cuma berisi 'me' kalau pesan ini benar-benar masuk dari orang lain.
-  if (message.to !== "me") return { skipped: "outgoing message" }
-  if (!message.body?.trim()) return { skipped: "empty body" }
+  if (message.to !== "me") {
+    console.log("[whatsapp webhook] skip: outgoing message, to=", message.to)
+    return { skipped: "outgoing message" }
+  }
+  if (!message.body?.trim()) {
+    console.log("[whatsapp webhook] skip: empty body")
+    return { skipped: "empty body" }
+  }
 
   const digits = message.senderNumber || message.from.replace(/@.*$/, "")
   const sender = await findRegisteredSender(digits)
 
   // Nomor tidak dikenal: diam saja, jangan dibalas apapun (hindari spam/bot-fishing & hemat kuota WA).
-  if (!sender) return { skipped: "unregistered number" }
+  if (!sender) {
+    console.log("[whatsapp webhook] skip: nomor tak terdaftar, digits=", digits)
+    return { skipped: "unregistered number" }
+  }
+
+  console.log("[whatsapp webhook] diproses untuk user:", sender.name, "command:", message.body.trim())
 
   const owner = await getWorkspaceOwner()
 
