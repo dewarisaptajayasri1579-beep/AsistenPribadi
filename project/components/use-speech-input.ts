@@ -60,7 +60,15 @@ export function useSpeechInput(onResult: (text: string) => void) {
       }
       stopMeter()
     }
-    recognition.onerror = () => stopMeter()
+    recognition.onerror = () => {
+      // Sama seperti onend: jangan buang transkrip yang sudah sempat terekam
+      // sebelum error (mis. "network"/"no-speech" — sering terjadi di mobile).
+      if (accumulatedRef.current) {
+        onResultRef.current(accumulatedRef.current)
+        accumulatedRef.current = ""
+      }
+      stopMeter()
+    }
 
     recognitionRef.current = recognition
 

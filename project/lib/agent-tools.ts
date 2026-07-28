@@ -174,6 +174,22 @@ export const toolDefinitions: Anthropic.Tool[] = [
     description: "Membuat ringkasan briefing harian: agenda hari ini, prioritas, dan follow-up yang terlambat.",
     input_schema: { type: "object", properties: {} },
   },
+  {
+    name: "get_pending_schedule_checkins",
+    description:
+      "Mengambil daftar jadwal yang sudah dikirimi pesan check-in (\"sudah selesai belum?\") tapi belum ditindaklanjuti. Panggil ini kalau pengguna membalas singkat seperti 'sudah'/'belum'/'udah selesai' tanpa konteks lain yang jelas, supaya tahu jadwal mana yang dimaksud.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "complete_schedule",
+    description:
+      "Menandai jadwal sebagai selesai ditindaklanjuti (dipanggil baik saat pengguna bilang 'sudah' maupun 'belum' terhadap check-in jadwal — supaya tidak ditanyakan berulang).",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+  },
 ]
 
 type ToolContext = { userId: string }
@@ -373,6 +389,22 @@ async function createFollowUp(ctx: ToolContext, input: any) {
   return followUp
 }
 
+async function getPendingScheduleCheckins(ctx: ToolContext) {
+  const pending = await prisma.schedule.findMany({
+    where: { userId: ctx.userId, checkinAt: { not: null }, status: { notIn: ["cancelled", "done"] } },
+    orderBy: { checkinAt: "desc" },
+  })
+  return { pending }
+}
+
+async function completeSchedule(ctx: ToolContext, input: any) {
+  const schedule = await prisma.schedule.update({
+    where: { id: input.id, userId: ctx.userId },
+    data: { status: "done" },
+  })
+  return schedule
+}
+
 async function generateDailyBrief(ctx: ToolContext) {
   const { start } = jakartaTodayRange()
   const [{ tasks, schedules }, highPriorityTasks, overdueFollowUps] = await Promise.all([
@@ -422,6 +454,10 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return createFollowUp(ctx, input)
     case "generate_daily_brief":
       return generateDailyBrief(ctx)
+    case "get_pending_schedule_checkins":
+      return getPendingScheduleCheckins(ctx)
+    case "complete_schedule":
+      return completeSchedule(ctx, input)
     default:
       throw new Error(`Unknown tool: ${name}`)
   }

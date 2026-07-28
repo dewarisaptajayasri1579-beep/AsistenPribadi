@@ -7,6 +7,7 @@ export async function register() {
 
   const cron = await import("node-cron")
   const { runScheduleReminders } = await import("@/lib/cron/schedule-reminders")
+  const { runScheduleCheckins } = await import("@/lib/cron/schedule-checkins")
   const { runMorningBriefing } = await import("@/lib/cron/morning-briefing")
   const { runEveningEvaluation } = await import("@/lib/cron/evening-evaluation")
   const { runRecurringScheduleTopUp } = await import("@/lib/cron/recurring-schedule-topup")
@@ -16,6 +17,15 @@ export async function register() {
     "*/5 * * * *",
     () => {
       runScheduleReminders().catch((e) => console.error("[cron] schedule-reminders gagal:", e))
+    },
+    { timezone: "Asia/Jakarta" }
+  )
+
+  // Cek jadwal yang sudah lewat >=30 menit & belum di-checkin, kirim WA nanya sudah selesai atau belum.
+  cron.schedule(
+    "*/5 * * * *",
+    () => {
+      runScheduleCheckins().catch((e) => console.error("[cron] schedule-checkins gagal:", e))
     },
     { timezone: "Asia/Jakarta" }
   )
@@ -48,6 +58,6 @@ export async function register() {
   )
 
   console.log(
-    "[cron] Terdaftar: reminder jadwal (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00) WIB"
+    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00) WIB"
   )
 }

@@ -30,11 +30,11 @@ export default async function Page({ searchParams }: PageProps) {
 
   const [daySchedules, weekSchedules, tasks, followUps] = await Promise.all([
     prisma.schedule.findMany({
-      where: { userId: owner.id, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
+      where: { userId: owner.id, startAt: { gte: start, lt: end }, status: { notIn: ["cancelled", "done"] } },
       orderBy: { startAt: "asc" },
     }),
     prisma.schedule.findMany({
-      where: { userId: owner.id, startAt: { gte: weekStart, lt: weekEnd }, status: { not: "cancelled" } },
+      where: { userId: owner.id, startAt: { gte: weekStart, lt: weekEnd }, status: { notIn: ["cancelled", "done"] } },
       orderBy: { startAt: "asc" },
     }),
     prisma.task.findMany({

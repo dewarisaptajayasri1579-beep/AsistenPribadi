@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   Home,
   LogOut,
+  MessageCircle,
   Settings,
 } from "lucide-react"
 
@@ -39,6 +40,7 @@ const menuItems = [
   { label: "Jadwal & Tugas", icon: CalendarDays, href: "/jadwal" },
   { label: "Laporan Harian", icon: ChartNoAxesColumnIncreasing, href: "/laporan" },
   { label: "Biaya AI", icon: CircleDollarSign, href: "/biaya-ai" },
+  { label: "Uji Coba WA", icon: MessageCircle, href: "/wa-test" },
   { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ]
 

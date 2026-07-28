@@ -7,7 +7,7 @@ export async function getDashboardData(userId: string) {
   const [todaySchedules, undoneTasks, highPriorityTasks, doneTodayCount, overdueFollowUps, pendingFollowUps] =
     await Promise.all([
       prisma.schedule.findMany({
-        where: { userId, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
+        where: { userId, startAt: { gte: start, lt: end }, status: { notIn: ["cancelled", "done"] } },
         orderBy: { startAt: "asc" },
       }),
       prisma.task.findMany({
