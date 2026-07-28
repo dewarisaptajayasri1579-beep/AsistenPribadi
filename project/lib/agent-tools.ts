@@ -265,7 +265,7 @@ async function checkScheduleConflict(ctx: ToolContext, input: any) {
     return s.startAt < end && sEnd > start
   })
 
-  return { hasConflict: conflicts.length > 0, conflicts }
+  return { hasConflict: conflicts.length > 0, conflicts: withScheduleLabels(conflicts) }
 }
 
 async function createSchedule(ctx: ToolContext, input: any) {
@@ -337,6 +337,16 @@ async function stopRecurringSchedule(ctx: ToolContext, input: any) {
   return { stopped: true, deletedUpcomingCount: deleted.count }
 }
 
+/** Tambah field label WIB per jadwal — field startAt/endAt aslinya UTC (offset Z), AI sering
+ *  salah sebut jam mentah itu ke pengguna kalau tidak dikasih versi yang sudah diformat. */
+function withScheduleLabels<T extends { startAt: Date; endAt: Date | null }>(schedules: T[]) {
+  return schedules.map((s) => ({
+    ...s,
+    startAtLabel: `${formatJakartaTime(s.startAt)} WIB`,
+    endAtLabel: s.endAt ? `${formatJakartaTime(s.endAt)} WIB` : null,
+  }))
+}
+
 async function getTodayTasks(ctx: ToolContext) {
   const { start, end } = jakartaTodayRange()
   const [tasks, schedules] = await Promise.all([
@@ -349,7 +359,7 @@ async function getTodayTasks(ctx: ToolContext) {
       orderBy: { startAt: "asc" },
     }),
   ])
-  return { tasks, schedules }
+  return { tasks, schedules: withScheduleLabels(schedules) }
 }
 
 async function getOverdueTasks(ctx: ToolContext) {
@@ -380,7 +390,7 @@ async function getUpcomingAgenda(ctx: ToolContext, input: any) {
     }),
   ])
 
-  return { rangeDays: days, schedules, tasks }
+  return { rangeDays: days, schedules: withScheduleLabels(schedules), tasks }
 }
 
 async function createFollowUp(ctx: ToolContext, input: any) {
@@ -401,7 +411,7 @@ async function getPendingScheduleCheckins(ctx: ToolContext) {
     where: { userId: ctx.userId, checkinAt: { not: null }, status: { notIn: ["cancelled", "done"] } },
     orderBy: { checkinAt: "desc" },
   })
-  return { pending }
+  return { pending: withScheduleLabels(pending) }
 }
 
 async function completeSchedule(ctx: ToolContext, input: any) {
