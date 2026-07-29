@@ -11,6 +11,12 @@ export async function register() {
   const { runMorningBriefing } = await import("@/lib/cron/morning-briefing")
   const { runEveningEvaluation } = await import("@/lib/cron/evening-evaluation")
   const { runRecurringScheduleTopUp } = await import("@/lib/cron/recurring-schedule-topup")
+  const { registerWahubWebhook } = await import("@/lib/wahub")
+
+  // Daftarkan ulang webhook WAHUB pakai env var yang aktif sekarang, tiap kali server start —
+  // supaya kalau WAHUB_API_KEY/WAHUB_WEBHOOK_SECRET/APP_BASE_URL berubah (redeploy/rotate key),
+  // webhook otomatis ke-sync ulang tanpa perlu didaftarkan manual lewat API.
+  registerWahubWebhook().catch((e) => console.error("[wahub] registrasi webhook saat startup gagal:", e))
 
   // Tahap 5: cek jadwal yang mendekati waktu setiap 5 menit, kirim reminder WhatsApp.
   cron.schedule(
