@@ -113,12 +113,18 @@
   }
   html {
     overflow-x: hidden;
-    overscroll-behavior: none;
+    /* Cuma kunci sumbu-X (cegah swipe-nav geser kiri-kanan) — overscroll-behavior: none di
+       kedua sumbu pernah bikin scroll vertikal ikut mati total di beberapa WebView Android/PWA
+       standalone saat tinggi konten mepet viewport. Sumbu-Y pakai contain: redam efek mantul
+       tanpa mematikan scroll asli. */
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: contain;
   }
   body {
     @apply bg-background text-foreground;
     overflow-x: hidden;
-    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: contain;
     width: 100%;
   }
 }
