@@ -122,9 +122,13 @@
   }
   body {
     @apply bg-background text-foreground;
-    overflow-x: hidden;
-    overscroll-behavior-x: none;
-    overscroll-behavior-y: contain;
+    /* Sengaja TIDAK overflow-x:hidden di sini (cukup di <html>). overflow-x selain "visible"
+       memaksa overflow-y jadi computed "auto" (kuirk CSS yang sama dengan <main>) — body jadi
+       scroll container sendiri, padahal isinya tidak pernah benar-benar overflow di dalam
+       body sendiri (tingginya otomatis pas konten). Karena overscroll-behavior-y:contain juga
+       ada, wheel/keyboard scroll jadi "mati" total: browser coba scroll body dulu (tidak ada
+       yang bisa di-scroll di situ), lalu gagal chaining ke <html> karena contain memblokirnya.
+       scrollTo() programatik tetap jalan (makanya bug ini kelihatan tidak konsisten). */
     width: 100%;
   }
 }
