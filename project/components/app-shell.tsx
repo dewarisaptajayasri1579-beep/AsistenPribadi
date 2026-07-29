@@ -26,7 +26,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <main className="min-h-dvh overflow-x-hidden bg-background p-3 sm:p-5 lg:p-6">
+    // Sengaja TIDAK pakai overflow-x-hidden di sini — per spec CSS, overflow-x selain
+    // "visible" otomatis memaksa overflow-y jadi "auto" (walau overflow-y eksplisit diset
+    // "visible" sekalipun), yang bikin <main> jadi scroll container sendiri, bersaing dengan
+    // <body> dan bikin scroll mouse wheel macet. Clip horizontal sudah ditangani di
+    // <html>/<body> (globals.css), jadi tidak perlu diulang di sini.
+    <main className="min-h-dvh bg-background p-3 sm:p-5 lg:p-6">
       <div className="mx-auto flex max-w-[1600px] flex-col items-stretch gap-4 lg:flex-row lg:items-start lg:gap-5">
         <DirectorSidebar
           collapsed={sidebarCollapsed}
