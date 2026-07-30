@@ -170,6 +170,21 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "get_follow_ups",
+    description:
+      "Mengambil daftar follow-up yang masih terbuka (belum selesai), termasuk ID-nya. Panggil ini kalau pengguna menyebut nama orang/topik (mis. \"Ridwan sudah selesai\", \"follow-up ke Pak Agus gimana\") supaya tahu follow-up mana yang dimaksud sebelum menandainya selesai — jangan menebak ID.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "complete_follow_up",
+    description: "Menandai follow-up sebagai selesai. Cari ID-nya dulu lewat get_follow_ups kalau belum tahu.",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+  },
+  {
     name: "generate_daily_brief",
     description: "Membuat ringkasan briefing harian: agenda hari ini, prioritas, dan follow-up yang terlambat.",
     input_schema: { type: "object", properties: {} },
@@ -406,6 +421,22 @@ async function createFollowUp(ctx: ToolContext, input: any) {
   return followUp
 }
 
+async function getFollowUps(ctx: ToolContext) {
+  const followUps = await prisma.followUp.findMany({
+    where: { userId: ctx.userId, status: "open" },
+    orderBy: { dueDate: "asc" },
+  })
+  return { followUps }
+}
+
+async function completeFollowUp(ctx: ToolContext, input: any) {
+  const followUp = await prisma.followUp.update({
+    where: { id: input.id, userId: ctx.userId },
+    data: { status: "done" },
+  })
+  return followUp
+}
+
 async function getPendingScheduleCheckins(ctx: ToolContext) {
   const pending = await prisma.schedule.findMany({
     where: { userId: ctx.userId, checkinAt: { not: null }, status: { notIn: ["cancelled", "done"] } },
@@ -469,6 +500,10 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getUpcomingAgenda(ctx, input)
     case "create_follow_up":
       return createFollowUp(ctx, input)
+    case "get_follow_ups":
+      return getFollowUps(ctx)
+    case "complete_follow_up":
+      return completeFollowUp(ctx, input)
     case "generate_daily_brief":
       return generateDailyBrief(ctx)
     case "get_pending_schedule_checkins":
