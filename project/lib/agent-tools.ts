@@ -3,6 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk"
 import { formatJakartaTime, jakartaRangeFromToday, jakartaTodayDateIso, jakartaTodayRange, parseJakartaDateIso } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { materializeOccurrences, RECURRING_HORIZON_WEEKS } from "@/lib/recurring-schedule"
+import { getStockPrice } from "@/lib/stock-price"
 
 export const toolDefinitions: Anthropic.Tool[] = [
   {
@@ -199,6 +200,44 @@ export const toolDefinitions: Anthropic.Tool[] = [
     name: "complete_schedule",
     description:
       "Menandai jadwal sebagai selesai ditindaklanjuti (dipanggil baik saat pengguna bilang 'sudah' maupun 'belum' terhadap check-in jadwal — supaya tidak ditanyakan berulang).",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+  },
+  {
+    name: "get_stock_price",
+    description: "Cek harga saham IDX terkini (Yahoo Finance, delay ~15-20 menit). Pakai untuk pertanyaan bebas seperti 'harga BBCA sekarang berapa?' — tidak perlu saham itu sedang dipantau.",
+    input_schema: {
+      type: "object",
+      properties: { ticker: { type: "string", description: "Kode saham IDX, mis. BBCA, TLKM (tanpa .JK)" } },
+      required: ["ticker"],
+    },
+  },
+  {
+    name: "create_stock_watch",
+    description:
+      "Mulai memantau saham IDX — kirim WA otomatis kalau harga capai target jual. WAJIB isi minimal salah satu: targetPrice (harga tetap) ATAU (buyPrice + targetPercent, persentase untung dari harga beli). Kalau pengguna belum sebutkan kriterianya, tanya dulu — jangan menebak angka.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ticker: { type: "string", description: "Kode saham IDX, mis. BBCA (tanpa .JK)" },
+        targetPrice: { type: "number", description: "Jual kalau harga tembus angka ini" },
+        buyPrice: { type: "number", description: "Harga beli/modal, dipakai bareng targetPercent" },
+        targetPercent: { type: "number", description: "Jual kalau untung sekian persen dari buyPrice" },
+      },
+      required: ["ticker"],
+    },
+  },
+  {
+    name: "get_stock_watches",
+    description: "Mengambil daftar saham yang sedang dipantau beserta harga terakhir & kriteria jualnya, termasuk ID-nya (dibutuhkan sebelum stop_stock_watch).",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "stop_stock_watch",
+    description: "Berhenti memantau satu saham (mis. karena sudah dijual manual). Cari ID-nya dulu lewat get_stock_watches kalau belum tahu.",
     input_schema: {
       type: "object",
       properties: { id: { type: "string" } },
@@ -470,6 +509,47 @@ async function generateDailyBrief(ctx: ToolContext) {
   return { agenda: schedules, tasksToday: tasks, highPriorityTasks, overdueFollowUps }
 }
 
+async function getStockPriceTool(_ctx: ToolContext, input: any) {
+  return getStockPrice(input.ticker)
+}
+
+async function createStockWatch(ctx: ToolContext, input: any) {
+  if (input.targetPrice == null && (input.buyPrice == null || input.targetPercent == null)) {
+    throw new Error("Wajib isi targetPrice, ATAU buyPrice+targetPercent, sebagai kriteria jual")
+  }
+
+  // Validasi ticker beneran ada dengan fetch harganya — jangan simpan ticker ngawur.
+  const quote = await getStockPrice(input.ticker)
+
+  const watch = await prisma.stockWatch.create({
+    data: {
+      userId: ctx.userId,
+      ticker: quote.ticker.replace(/\.JK$/, ""),
+      companyName: quote.companyName,
+      targetPrice: input.targetPrice,
+      buyPrice: input.buyPrice,
+      targetPercent: input.targetPercent,
+    },
+  })
+  return { watch, currentPrice: quote.price }
+}
+
+async function getStockWatches(ctx: ToolContext) {
+  const watches = await prisma.stockWatch.findMany({
+    where: { userId: ctx.userId, active: true },
+    include: { priceLogs: { orderBy: { checkedAt: "desc" }, take: 1 } },
+  })
+  return { watches }
+}
+
+async function stopStockWatch(ctx: ToolContext, input: any) {
+  const watch = await prisma.stockWatch.update({
+    where: { id: input.id, userId: ctx.userId },
+    data: { active: false },
+  })
+  return watch
+}
+
 export async function runTool(name: string, input: any, ctx: ToolContext) {
   switch (name) {
     case "create_task":
@@ -510,6 +590,14 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getPendingScheduleCheckins(ctx)
     case "complete_schedule":
       return completeSchedule(ctx, input)
+    case "get_stock_price":
+      return getStockPriceTool(ctx, input)
+    case "create_stock_watch":
+      return createStockWatch(ctx, input)
+    case "get_stock_watches":
+      return getStockWatches(ctx)
+    case "stop_stock_watch":
+      return stopStockWatch(ctx, input)
     default:
       throw new Error(`Unknown tool: ${name}`)
   }

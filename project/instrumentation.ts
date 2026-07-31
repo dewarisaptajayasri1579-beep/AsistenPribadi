@@ -11,6 +11,7 @@ export async function register() {
   const { runMorningBriefing } = await import("@/lib/cron/morning-briefing")
   const { runEveningEvaluation } = await import("@/lib/cron/evening-evaluation")
   const { runRecurringScheduleTopUp } = await import("@/lib/cron/recurring-schedule-topup")
+  const { runStockWatchCheck } = await import("@/lib/cron/stock-watch")
   const { registerWahubWebhook } = await import("@/lib/wahub")
 
   // Daftarkan ulang webhook WAHUB pakai env var yang aktif sekarang, tiap kali server start —
@@ -63,7 +64,16 @@ export async function register() {
     { timezone: "Asia/Jakarta" }
   )
 
+  // Cek harga saham yang dipantau tiap 15 menit pas jam bursa (Senin-Jumat 09:00-16:00 WIB).
+  cron.schedule(
+    "*/15 9-16 * * 1-5",
+    () => {
+      runStockWatchCheck().catch((e) => console.error("[cron] stock-watch gagal:", e))
+    },
+    { timezone: "Asia/Jakarta" }
+  )
+
   console.log(
-    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00) WIB"
+    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00), cek harga saham (15 menit, jam bursa) WIB"
   )
 }

@@ -23,6 +23,9 @@ model User {
   notifyDailyReport      Boolean      @default(true) @map("notify_daily_report")
   notifyPriorityAlert    Boolean      @default(true) @map("notify_priority_alert")
   notifyMorningBriefing  Boolean      @default(true) @map("notify_morning_briefing")
+  notifyStockMarket      Boolean      @default(false) @map("notify_stock_market")
+  stockNotifyPhone1      String?      @map("stock_notify_phone_1")
+  stockNotifyPhone2      String?      @map("stock_notify_phone_2")
   createdAt              DateTime     @default(now()) @map("created_at")
   tasks                  Task[]
   schedules              Schedule[]
@@ -33,6 +36,7 @@ model User {
   pushSubscriptions      PushSubscription[]
   recurringSchedules     RecurringSchedule[]
   whatsappThread         WhatsappThread?
+  stockWatches           StockWatch[]
 
   @@map("users")
 }
@@ -170,4 +174,33 @@ model AiUsageLog {
   user                User     @relation(fields: [userId], references: [id])
 
   @@map("ai_usage_logs")
+}
+
+/// Watchlist saham IDX — AI/cron cek harga berkala (lib/cron/stock-watch.ts) dan kirim WA
+/// kalau harga sudah capai targetPrice ATAU naik targetPercent% dari buyPrice.
+model StockWatch {
+  id            String          @id @default(uuid())
+  userId        String          @map("user_id")
+  ticker        String          // tersimpan TANPA suffix, mis. "BBCA" — suffix .JK ditambah saat fetch
+  companyName   String?         @map("company_name")
+  targetPrice   Float?          @map("target_price")
+  buyPrice      Float?          @map("buy_price")
+  targetPercent Float?          @map("target_percent")
+  active        Boolean         @default(true)
+  lastAlertAt   DateTime?       @map("last_alert_at")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  user          User            @relation(fields: [userId], references: [id])
+  priceLogs     StockPriceLog[]
+
+  @@map("stock_watches")
+}
+
+model StockPriceLog {
+  id           String     @id @default(uuid())
+  stockWatchId String     @map("stock_watch_id")
+  price        Float
+  checkedAt    DateTime   @default(now()) @map("checked_at")
+  stockWatch   StockWatch @relation(fields: [stockWatchId], references: [id], onDelete: Cascade)
+
+  @@map("stock_price_logs")
 }

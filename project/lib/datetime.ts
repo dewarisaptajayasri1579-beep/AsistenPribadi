@@ -75,6 +75,11 @@ export function jakartaTodayDateIso(reference: Date = new Date()) {
   return isoOf(j.getUTCFullYear(), j.getUTCMonth(), j.getUTCDate())
 }
 
+/** True kalau dua instant jatuh di tanggal kalender Jakarta yang sama. */
+export function isSameJakartaDay(a: Date, b: Date) {
+  return jakartaTodayDateIso(a) === jakartaTodayDateIso(b)
+}
+
 /** Parses a "YYYY-MM-DD" string into a Date instant at Jakarta noon, safe for jakartaTodayRange(). */
 export function parseJakartaDateIso(dateIso: string) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateIso)
