@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, Bot, Save, Settings, UserRound } from "lucide-react"
+import { Bell, Bot, Save, Settings, TrendingUp, UserRound } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { PageHeading } from "@/components/page-heading"
@@ -24,6 +24,9 @@ interface SettingsValues {
   notifyDailyReport: boolean
   notifyPriorityAlert: boolean
   notifyMorningBriefing: boolean
+  notifyStockMarket: boolean
+  stockNotifyPhone1: string
+  stockNotifyPhone2: string
 }
 
 export function SettingsPage({ initial }: { initial: SettingsValues }) {
@@ -149,6 +152,50 @@ export function SettingsPage({ initial }: { initial: SettingsValues }) {
                     <FieldDescription>Berikan notifikasi untuk tugas mendesak.</FieldDescription>
                   </FieldContent>
                   <Switch id="priority-alert" checked={values.notifyPriorityAlert} onCheckedChange={(v) => update("notifyPriorityAlert", v)} />
+                </Field>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card border-0 ring-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="size-5 text-primary" aria-hidden="true" />
+                Notif Bursa Saham
+              </CardTitle>
+              <CardDescription>Kirim alert harga saham lewat WhatsApp ke maksimal 2 nomor.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup>
+                <Field orientation="horizontal" className="rounded-xl border border-border bg-secondary/25 p-3">
+                  <FieldContent>
+                    <FieldLabel htmlFor="stock-notification">Aktifkan notifikasi</FieldLabel>
+                    <FieldDescription>Kirim WhatsApp saat harga saham capai target.</FieldDescription>
+                  </FieldContent>
+                  <Switch id="stock-notification" checked={values.notifyStockMarket} onCheckedChange={(v) => update("notifyStockMarket", v)} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="stock-phone-1">Nomor WhatsApp 1</FieldLabel>
+                  <Input
+                    id="stock-phone-1"
+                    type="tel"
+                    placeholder="08xxxxxxxxxx"
+                    value={values.stockNotifyPhone1}
+                    onChange={(e) => update("stockNotifyPhone1", e.target.value)}
+                    autoComplete="tel"
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="stock-phone-2">Nomor WhatsApp 2</FieldLabel>
+                  <Input
+                    id="stock-phone-2"
+                    type="tel"
+                    placeholder="08xxxxxxxxxx"
+                    value={values.stockNotifyPhone2}
+                    onChange={(e) => update("stockNotifyPhone2", e.target.value)}
+                    autoComplete="tel"
+                  />
+                  <FieldDescription>Opsional. Kosongkan jika hanya butuh 1 nomor.</FieldDescription>
                 </Field>
               </FieldGroup>
             </CardContent>

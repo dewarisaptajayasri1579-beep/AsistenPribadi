@@ -17,6 +17,9 @@ export async function GET() {
     notifyDailyReport: user.notifyDailyReport,
     notifyPriorityAlert: user.notifyPriorityAlert,
     notifyMorningBriefing: user.notifyMorningBriefing,
+    notifyStockMarket: user.notifyStockMarket,
+    stockNotifyPhone1: user.stockNotifyPhone1 ?? "",
+    stockNotifyPhone2: user.stockNotifyPhone2 ?? "",
   })
 }
 
@@ -40,6 +43,9 @@ export async function PATCH(request: Request) {
   if (typeof body.notifyDailyReport === "boolean") data.notifyDailyReport = body.notifyDailyReport
   if (typeof body.notifyPriorityAlert === "boolean") data.notifyPriorityAlert = body.notifyPriorityAlert
   if (typeof body.notifyMorningBriefing === "boolean") data.notifyMorningBriefing = body.notifyMorningBriefing
+  if (typeof body.notifyStockMarket === "boolean") data.notifyStockMarket = body.notifyStockMarket
+  if (typeof body.stockNotifyPhone1 === "string") data.stockNotifyPhone1 = body.stockNotifyPhone1 || null
+  if (typeof body.stockNotifyPhone2 === "string") data.stockNotifyPhone2 = body.stockNotifyPhone2 || null
 
   try {
     const updated = await prisma.user.update({ where: { id: user.id }, data })

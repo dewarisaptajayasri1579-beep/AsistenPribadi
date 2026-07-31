@@ -18,6 +18,9 @@ export default async function Page() {
         notifyDailyReport: user.notifyDailyReport,
         notifyPriorityAlert: user.notifyPriorityAlert,
         notifyMorningBriefing: user.notifyMorningBriefing,
+        notifyStockMarket: user.notifyStockMarket,
+        stockNotifyPhone1: user.stockNotifyPhone1 ?? "",
+        stockNotifyPhone2: user.stockNotifyPhone2 ?? "",
       }}
     />
   )
