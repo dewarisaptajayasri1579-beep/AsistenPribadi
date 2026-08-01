@@ -3,15 +3,12 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
-  Bot,
   CalendarDays,
-  ChartNoAxesColumnIncreasing,
   ChevronsLeft,
   ChevronsRight,
   CircleDollarSign,
   Home,
   LogOut,
-  MessageCircle,
   Settings,
   TrendingUp,
 } from "lucide-react"
@@ -37,12 +34,9 @@ function initialsOf(name: string) {
 
 const menuItems = [
   { label: "Dashboard", icon: Home, href: "/" },
-  { label: "AI Assistant", icon: Bot, href: "/assistant" },
   { label: "Jadwal & Tugas", icon: CalendarDays, href: "/jadwal" },
-  { label: "Laporan Harian", icon: ChartNoAxesColumnIncreasing, href: "/laporan" },
   { label: "Biaya AI", icon: CircleDollarSign, href: "/biaya-ai" },
   { label: "Bursa Saham", icon: TrendingUp, href: "/saham" },
-  { label: "Uji Coba WA", icon: MessageCircle, href: "/wa-test" },
   { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ]
 
