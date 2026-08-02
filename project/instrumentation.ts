@@ -12,6 +12,7 @@ export async function register() {
   const { runEveningEvaluation } = await import("@/lib/cron/evening-evaluation")
   const { runRecurringScheduleTopUp } = await import("@/lib/cron/recurring-schedule-topup")
   const { runStockWatchCheck } = await import("@/lib/cron/stock-watch")
+  const { runMotivationMessage } = await import("@/lib/cron/motivation-message")
   const { registerWahubWebhook } = await import("@/lib/wahub")
 
   // Daftarkan ulang webhook WAHUB pakai env var yang aktif sekarang, tiap kali server start —
@@ -73,7 +74,16 @@ export async function register() {
     { timezone: "Asia/Jakarta" }
   )
 
+  // Pesan kekuatan pikiran positif tiap 3 jam, jam 06:00–21:00 WIB (06, 09, 12, 15, 18, 21).
+  cron.schedule(
+    "0 6-21/3 * * *",
+    () => {
+      runMotivationMessage().catch((e) => console.error("[cron] motivation-message gagal:", e))
+    },
+    { timezone: "Asia/Jakarta" }
+  )
+
   console.log(
-    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00), cek harga saham (15 menit, jam bursa) WIB"
+    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00), cek harga saham (15 menit, jam bursa), pesan motivasi (tiap 3 jam 06:00-21:00) WIB"
   )
 }
