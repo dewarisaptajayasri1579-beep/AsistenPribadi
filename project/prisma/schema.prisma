@@ -37,6 +37,7 @@ model User {
   recurringSchedules     RecurringSchedule[]
   whatsappThread         WhatsappThread?
   stockWatches           StockWatch[]
+  motivationMessages     MotivationMessage[]
 
   @@map("users")
 }
@@ -193,6 +194,22 @@ model StockWatch {
   priceLogs     StockPriceLog[]
 
   @@map("stock_watches")
+}
+
+/// Pesan motivasi & prinsip hidup — dikirim acak tiap 3 jam via WA (lib/cron/motivation-message.ts).
+/// Dikelola lewat menu Motivasi, atau ditambah langsung dari WA dengan pesan diawali "##"
+/// (lihat parseMotivationShortcut di lib/whatsapp-webhook.ts).
+model MotivationMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  label     String?
+  content   String
+  active    Boolean  @default(true)
+  source    String   @default("manual") // "manual" | "whatsapp"
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("motivation_messages")
 }
 
 model StockPriceLog {

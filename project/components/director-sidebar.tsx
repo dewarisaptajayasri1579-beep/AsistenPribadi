@@ -10,6 +10,7 @@ import {
   Home,
   LogOut,
   Settings,
+  Sparkles,
   TrendingUp,
 } from "lucide-react"
 
@@ -37,6 +38,7 @@ const menuItems = [
   { label: "Jadwal & Tugas", icon: CalendarDays, href: "/jadwal" },
   { label: "Biaya AI", icon: CircleDollarSign, href: "/biaya-ai" },
   { label: "Bursa Saham", icon: TrendingUp, href: "/saham" },
+  { label: "Motivasi", icon: Sparkles, href: "/motivasi" },
   { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ]
 

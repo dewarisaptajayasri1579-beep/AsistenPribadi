@@ -9,6 +9,24 @@ import { normalizePhoneNumber, sendWhatsappMessage } from "@/lib/wahub"
 // tidak "nyangkut" ke topik baru yang tidak berhubungan.
 const THREAD_IDLE_MS = 30 * 60 * 1000
 
+/** Pesan WA yang diawali "##" langsung disimpan sebagai motivasi baru, tanpa lewat AI Agent
+ *  (deterministik & hemat kuota Claude). Format: "## Judul, isi motivasi" — judul & koma opsional. */
+function parseMotivationShortcut(body: string) {
+  if (!body.startsWith("##")) return null
+
+  const rest = body.slice(2).trim()
+  if (!rest) return null
+
+  const commaIndex = rest.indexOf(",")
+  if (commaIndex === -1) return { label: null, content: rest }
+
+  const label = rest.slice(0, commaIndex).trim()
+  const content = rest.slice(commaIndex + 1).trim()
+  if (!content) return { label: null, content: rest }
+
+  return { label: label || null, content }
+}
+
 interface WahubIncomingMessage {
   from?: string
   senderNumber?: string
@@ -63,6 +81,25 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   console.log("[whatsapp webhook] diproses untuk user:", sender.name, "command:", message.body.trim())
 
   const owner = await getWorkspaceOwner()
+
+  const motivationShortcut = parseMotivationShortcut(message.body.trim())
+  if (motivationShortcut) {
+    await prisma.motivationMessage.create({
+      data: {
+        userId: owner.id,
+        label: motivationShortcut.label,
+        content: motivationShortcut.content,
+        source: "whatsapp",
+      },
+    })
+
+    const confirmation = motivationShortcut.label
+      ? `✅ Motivasi baru tersimpan: "${motivationShortcut.label}".`
+      : "✅ Motivasi baru tersimpan."
+    await sendWhatsappMessage(digits, confirmation)
+
+    return { handled: true, motivationAdded: true }
+  }
 
   const thread = await prisma.whatsappThread.findUnique({ where: { userId: sender.id } })
   const isFresh = thread && Date.now() - thread.updatedAt.getTime() < THREAD_IDLE_MS
