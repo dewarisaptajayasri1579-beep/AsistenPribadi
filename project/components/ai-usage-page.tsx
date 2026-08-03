@@ -1,7 +1,8 @@
-import { CircleDollarSign, MessagesSquare, Receipt, Zap } from "lucide-react"
+import { CircleDollarSign, ExternalLink, MessagesSquare, Receipt, Zap } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { PageHeading } from "@/components/page-heading"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { AiUsageOverview } from "@/lib/usage-queries"
 import { formatIdr, modelLabel } from "@/lib/pricing"
@@ -38,6 +39,17 @@ export function AiUsagePage({ overview }: { overview: AiUsageOverview }) {
           title="Biaya AI"
           description="Pantau token dan estimasi biaya setiap chat dengan AI Agent."
           icon={CircleDollarSign}
+          action={
+            <Button
+              variant="secondary"
+              className="gap-2 self-start rounded-xl"
+              nativeButton={false}
+              render={<a href="https://console.anthropic.com/settings/usage" target="_blank" rel="noopener noreferrer" />}
+            >
+              <ExternalLink className="size-4" />
+              Penggunaan API di Claude Console
+            </Button>
+          }
         />
 
         <section aria-label="Ringkasan biaya" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
