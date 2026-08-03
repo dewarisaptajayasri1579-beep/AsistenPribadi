@@ -12,6 +12,7 @@ import {
   Settings,
   Sparkles,
   TrendingUp,
+  Wallet,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -38,6 +39,7 @@ const menuItems = [
   { label: "Jadwal & Tugas", icon: CalendarDays, href: "/jadwal" },
   { label: "Biaya AI", icon: CircleDollarSign, href: "/biaya-ai" },
   { label: "Bursa Saham", icon: TrendingUp, href: "/saham" },
+  { label: "Keuangan", icon: Wallet, href: "/keuangan" },
   { label: "Motivasi", icon: Sparkles, href: "/motivasi" },
   { label: "Pengaturan", icon: Settings, href: "/pengaturan" },
 ]

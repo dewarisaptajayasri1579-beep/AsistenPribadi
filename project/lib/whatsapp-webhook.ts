@@ -34,6 +34,8 @@ interface WahubIncomingMessage {
   to?: string
   body?: string
   hasMedia?: boolean
+  mediaBase64?: string | null
+  mimetype?: string | null
 }
 
 interface WahubWebhookPayload {
@@ -105,12 +107,21 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   const isFresh = thread && Date.now() - thread.updatedAt.getTime() < THREAD_IDLE_MS
   const history = isFresh ? (thread!.history as unknown as Anthropic.MessageParam[]) : undefined
 
+  // Placeholder dari WAHUB kalau foto dikirim tanpa caption — tidak berguna dikirim apa adanya
+  // ke AI, ganti dengan instruksi baca nota yang jelas.
+  const bodyTrimmed = message.body.trim()
+  const command =
+    message.mediaBase64 && bodyTrimmed === "[MEDIA Image]"
+      ? "Tolong baca foto ini. Kalau ini nota/struk belanja, ekstrak & catat sebagai transaksi (record_transaction) sesuai isinya."
+      : bodyTrimmed
+
   const { reply, messages } = await runAgent({
     ownerId: owner.id,
     actorId: sender.id,
-    command: message.body.trim(),
+    command,
     assistantInstructions: sender.assistantInstructions,
     history,
+    image: message.mediaBase64 ? { base64: message.mediaBase64, mimeType: message.mimetype || "image/jpeg" } : undefined,
   })
 
   await prisma.whatsappThread.upsert({

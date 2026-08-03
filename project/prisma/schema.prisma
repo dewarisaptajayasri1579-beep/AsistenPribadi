@@ -38,6 +38,7 @@ model User {
   whatsappThread         WhatsappThread?
   stockWatches           StockWatch[]
   motivationMessages     MotivationMessage[]
+  transactions           Transaction[]
 
   @@map("users")
 }
@@ -210,6 +211,24 @@ model MotivationMessage {
   user      User     @relation(fields: [userId], references: [id])
 
   @@map("motivation_messages")
+}
+
+/// Catatan pemasukan/pengeluaran. Bisa ditambah manual di menu Keuangan, atau lewat WA (teks
+/// biasa mis. "keluar 20rb parkir", atau foto nota yang dibaca AI Agent lewat Claude vision —
+/// lihat instruksi baca nota di STATIC_SYSTEM_PROMPT, lib/agent.ts).
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  type        String // "income" | "expense"
+  amount      Float
+  category    String?
+  description String?
+  occurredAt  DateTime @default(now()) @map("occurred_at")
+  source      String   @default("manual") // "manual" | "whatsapp" | "whatsapp_receipt"
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@map("transactions")
 }
 
 model StockPriceLog {

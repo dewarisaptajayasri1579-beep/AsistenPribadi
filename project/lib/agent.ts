@@ -33,7 +33,8 @@ Aturan:
 10. Kalau pengguna membalas singkat seperti "sudah"/"udah selesai"/"belum"/"belum sempat" tanpa konteks lain yang jelas, panggil get_pending_schedule_checkins dulu untuk cari tahu jadwal mana yang dimaksud. Kalau hasilnya cuma SATU jadwal: pengguna SUDAH menjawab (itulah alasan dia membalas "sudah"/"belum") — JANGAN tanya balik "apakah sudah selesai?" atau konfirmasi ulang apapun, itu bikin pengguna harus jawab dua kali untuk hal yang sama. Langsung eksekusi di respons yang sama: kalau jawabannya "sudah", panggil complete_schedule LANGSUNG lalu konfirmasi singkat (mis. "Oke, [judul] sudah ditandai selesai."); kalau "belum", tanyakan kapan mau diselesaikan — setelah dijawab, panggil create_follow_up (judul menyebut jadwal terkait, dueDate sesuai jawaban) DAN complete_schedule untuk jadwal itu. Cuma tanya balik ke pengguna kalau get_pending_schedule_checkins hasilnya lebih dari satu (sebutkan judul-judulnya, tanya yang mana) atau kosong (tidak ada yang pending).
 11. Field waktu mentah dari hasil tool (startAt/endAt/dueDate, dsb, berakhiran "Z"/UTC) JANGAN pernah disebut langsung ke pengguna — itu bukan jam WIB. Kalau tool menyediakan field label (mis. startAtLabel/endAtLabel), pakai itu untuk konfirmasi jam ke pengguna. Kalau tidak ada field label, sebut ulang jam yang pengguna sendiri sebutkan di perintahnya, jangan menghitung ulang dari ISO mentah.
 12. Saat create_stock_watch, kalau pengguna belum sebutkan kriteria jual (harga target ATAU harga beli+persentase), WAJIB tanya dulu — jangan menebak angka. Sebutkan harga saham selalu dalam format Rupiah biasa (mis. "Rp6.450"), bukan angka mentah tanpa format. Ingatkan sekali di awal kalau relevan bahwa harga dari Yahoo Finance ada delay ~15-20 menit, bukan real-time detik-per-detik.
-13. Kalau pengguna bilang sesuatu "sudah selesai" sambil menyebut topik/tempat/nama (bukan cuma "sudah" polos) — mis. "Jadwal ke Madiun sudah selesai", "Perjalanan ke Solo sudah beres" — JANGAN asumsikan itu pasti Schedule hanya karena ada kata "jadwal"/"perjalanan". Follow-up JUGA bisa punya judul yang mengandung kata-kata itu (mis. follow-up "Mengatur jadwal ke Madiun minggu depan"). WAJIB cek KEDUA sumber sebelum bertindak: panggil get_pending_schedule_checkins DAN get_follow_ups, cocokkan topik ke judul di masing-masing hasil, baru complete_schedule/complete_follow_up yang benar-benar cocok. Kalau cocok di dua-duanya (Schedule DAN FollowUp beda topik yang sama), selesaikan dua-duanya. Jangan berhenti cuma karena satu tool sudah dapat hasil "cocok" kalau ternyata itu jadwal yang berbeda dari yang dimaksud pengguna — perhatikan baik-baik kesamaan judulnya.`
+13. Kalau pengguna bilang sesuatu "sudah selesai" sambil menyebut topik/tempat/nama (bukan cuma "sudah" polos) — mis. "Jadwal ke Madiun sudah selesai", "Perjalanan ke Solo sudah beres" — JANGAN asumsikan itu pasti Schedule hanya karena ada kata "jadwal"/"perjalanan". Follow-up JUGA bisa punya judul yang mengandung kata-kata itu (mis. follow-up "Mengatur jadwal ke Madiun minggu depan"). WAJIB cek KEDUA sumber sebelum bertindak: panggil get_pending_schedule_checkins DAN get_follow_ups, cocokkan topik ke judul di masing-masing hasil, baru complete_schedule/complete_follow_up yang benar-benar cocok. Kalau cocok di dua-duanya (Schedule DAN FollowUp beda topik yang sama), selesaikan dua-duanya. Jangan berhenti cuma karena satu tool sudah dapat hasil "cocok" kalau ternyata itu jadwal yang berbeda dari yang dimaksud pengguna — perhatikan baik-baik kesamaan judulnya.
+14. Kalau pesan pengguna menyertakan foto (mis. nota/struk belanja), baca gambarnya langsung: tentukan jenisnya (income = pemasukan, expense = pengeluaran — nota belanja/struk toko selalu expense), ambil nominal TOTAL akhir (bukan subtotal sebelum pajak/diskon), tanggal transaksi (kalau tidak kelihatan di nota, kosongkan occurredAt supaya dipakai waktu sekarang), nama toko/keterangan singkat, dan kategori (mis. makan, transportasi, belanja, tagihan) — lalu panggil record_transaction. Kalau fotonya buram/nominal totalnya tidak terbaca jelas, JANGAN menebak angka — sebutkan apa yang berhasil dibaca dan tanya konfirmasi nominalnya ke pengguna. Untuk pencatatan lewat teks biasa tanpa foto (mis. "keluar 20rb parkir", "masuk gaji 5jt") juga pakai record_transaction — kalau jenis (pemasukan/pengeluaran) atau nominalnya ambigu, tanya dulu sebelum mencatat.`
 
 function systemPrompt(assistantInstructions?: string | null): Anthropic.TextBlockParam[] {
   const blocks: Anthropic.TextBlockParam[] = [
@@ -57,14 +58,23 @@ interface RunAgentParams {
   /** Riwayat percakapan sebelumnya (dari respons runAgent panggilan terakhir) — supaya pertanyaan
    *  lanjutan seperti "ya hapus saja" tetap tahu jadwal/tugas mana yang dimaksud. */
   history?: Anthropic.MessageParam[]
+  /** Foto yang disertakan pengguna (mis. nota/struk) — dikirim ke Claude sebagai gambar supaya
+   *  bisa dibaca lewat vision, bukan cuma teks. Sudah dikompres di sisi WAHUB sebelum sampai sini. */
+  image?: { base64: string; mimeType: string }
 }
 
-export async function runAgent({ ownerId, actorId, command, assistantInstructions, history }: RunAgentParams) {
+export async function runAgent({ ownerId, actorId, command, assistantInstructions, history, image }: RunAgentParams) {
   // Waktu sekarang dikirim lewat pesan user (bukan system prompt) supaya system prompt tetap
   // statis byte-per-byte dan bisa di-cache Anthropic — lihat shared/prompt-caching.md.
-  const firstMessage = `Waktu sekarang: ${jakartaNowIso()} (Asia/Jakarta).\n\nPerintah: ${command}`
+  const firstMessageText = `Waktu sekarang: ${jakartaNowIso()} (Asia/Jakarta).\n\nPerintah: ${command}`
+  const firstMessageContent: Anthropic.MessageParam["content"] = image
+    ? [
+        { type: "image", source: { type: "base64", media_type: image.mimeType as Anthropic.Base64ImageSource["media_type"], data: image.base64 } },
+        { type: "text", text: firstMessageText },
+      ]
+    : firstMessageText
   const trimmedHistory = (history ?? []).slice(-MAX_HISTORY_MESSAGES)
-  const messages: Anthropic.MessageParam[] = [...trimmedHistory, { role: "user", content: firstMessage }]
+  const messages: Anthropic.MessageParam[] = [...trimmedHistory, { role: "user", content: firstMessageContent }]
 
   let finalText = ""
   const startedAt = Date.now()

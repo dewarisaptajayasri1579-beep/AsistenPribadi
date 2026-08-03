@@ -244,6 +244,42 @@ export const toolDefinitions: Anthropic.Tool[] = [
       required: ["id"],
     },
   },
+  {
+    name: "record_transaction",
+    description:
+      "Mencatat SATU pemasukan/pengeluaran. Dipakai baik untuk perintah teks biasa (mis. 'keluar 20rb parkir') MAUPUN hasil baca foto nota/struk — kalau pengguna kirim foto nota, ekstrak nominal TOTAL akhir (bukan subtotal), tanggal transaksi (kalau tidak kelihatan di nota, pakai waktu sekarang), nama toko/keterangan, dan kategori (mis. makan, transportasi, belanja, tagihan) dari isi nota, lalu panggil tool ini. Kalau nominal atau jenisnya (pemasukan/pengeluaran) tidak jelas dari teks maupun foto, tanya dulu ke pengguna — jangan menebak.",
+    input_schema: {
+      type: "object",
+      properties: {
+        type: { type: "string", enum: ["income", "expense"], description: "income = pemasukan, expense = pengeluaran" },
+        amount: { type: "number", description: "Nominal transaksi (Rupiah, tanpa titik/koma pemisah)" },
+        category: { type: "string", description: "Kategori, mis. makan, transportasi, belanja, gaji, tagihan" },
+        description: { type: "string", description: "Keterangan singkat, mis. nama toko atau alasan" },
+        occurredAt: { type: "string", description: "Tanggal/waktu transaksi, ISO 8601. Kosongkan untuk pakai waktu sekarang." },
+      },
+      required: ["type", "amount"],
+    },
+  },
+  {
+    name: "get_transactions",
+    description:
+      "Mengambil riwayat transaksi (pemasukan/pengeluaran), termasuk ID-nya (dibutuhkan sebelum delete_transaction) dan ringkasan total. Pakai untuk pertanyaan seperti 'pengeluaran bulan ini berapa', 'catatan keuangan hari ini apa saja'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        days: { type: "number", description: "Rentang N hari terakhir dari hari ini, default 30, maksimal 365" },
+      },
+    },
+  },
+  {
+    name: "delete_transaction",
+    description: "Menghapus satu catatan transaksi (mis. salah catat). Cari ID-nya dulu lewat get_transactions kalau belum tahu.",
+    input_schema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+  },
 ]
 
 type ToolContext = { userId: string }
@@ -550,6 +586,50 @@ async function stopStockWatch(ctx: ToolContext, input: any) {
   return watch
 }
 
+async function recordTransaction(ctx: ToolContext, input: any) {
+  if (input.type !== "income" && input.type !== "expense") {
+    throw new Error("type wajib 'income' atau 'expense'")
+  }
+  const amount = Number(input.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("amount wajib angka lebih dari 0")
+  }
+
+  const transaction = await prisma.transaction.create({
+    data: {
+      userId: ctx.userId,
+      type: input.type,
+      amount,
+      category: input.category,
+      description: input.description,
+      occurredAt: input.occurredAt ? new Date(input.occurredAt) : undefined,
+      source: "whatsapp",
+    },
+  })
+  return { transaction }
+}
+
+async function getTransactions(ctx: ToolContext, input: any) {
+  const days = typeof input?.days === "number" && input.days > 0 ? Math.min(Math.floor(input.days), 365) : 30
+  const { start: todayStart } = jakartaTodayRange()
+  const start = new Date(todayStart.getTime() - (days - 1) * 24 * 60 * 60 * 1000)
+
+  const transactions = await prisma.transaction.findMany({
+    where: { userId: ctx.userId, occurredAt: { gte: start } },
+    orderBy: { occurredAt: "desc" },
+  })
+
+  const totalIncome = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
+  const totalExpense = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)
+
+  return { rangeDays: days, transactions, totalIncome, totalExpense, balance: totalIncome - totalExpense }
+}
+
+async function deleteTransaction(ctx: ToolContext, input: any) {
+  await prisma.transaction.delete({ where: { id: input.id, userId: ctx.userId } })
+  return { deleted: true }
+}
+
 export async function runTool(name: string, input: any, ctx: ToolContext) {
   switch (name) {
     case "create_task":
@@ -598,6 +678,12 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getStockWatches(ctx)
     case "stop_stock_watch":
       return stopStockWatch(ctx, input)
+    case "record_transaction":
+      return recordTransaction(ctx, input)
+    case "get_transactions":
+      return getTransactions(ctx, input)
+    case "delete_transaction":
+      return deleteTransaction(ctx, input)
     default:
       throw new Error(`Unknown tool: ${name}`)
   }
