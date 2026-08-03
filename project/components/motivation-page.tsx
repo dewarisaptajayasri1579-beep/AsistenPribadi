@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Pencil, Plus, Sparkles, Trash2 } from "lucide-react"
+import { Pencil, Plus, Sparkles, Trash2, Wand2 } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { PageHeading } from "@/components/page-heading"
@@ -43,6 +43,8 @@ function MotivationForm({
   const [label, setLabel] = useState(initial?.label ?? "")
   const [content, setContent] = useState(initial?.content ?? "")
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -55,6 +57,26 @@ function MotivationForm({
     }
   }
 
+  async function handleGenerate() {
+    if (!content.trim() || generating) return
+    setGenerating(true)
+    setGenerateError(null)
+    try {
+      const res = await fetch("/api/motivations/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ coreSentence: content }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? "Gagal merangkai kalimat")
+      setContent(data.content)
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Gagal merangkai kalimat")
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <FieldGroup>
@@ -63,16 +85,33 @@ function MotivationForm({
           <Input id="motivation-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Contoh: Usaha & Omset Naik" />
         </Field>
         <Field>
-          <FieldLabel htmlFor="motivation-content">Isi motivasi / prinsip</FieldLabel>
+          <div className="flex items-center justify-between gap-2">
+            <FieldLabel htmlFor="motivation-content">Isi motivasi / prinsip</FieldLabel>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-7 gap-1.5 rounded-lg px-2.5 text-xs"
+              onClick={handleGenerate}
+              disabled={!content.trim() || generating}
+            >
+              <Wand2 className="size-3.5" />
+              {generating ? "Merangkai…" : "Rangkai dengan AI"}
+            </Button>
+          </div>
           <Textarea
             id="motivation-content"
             rows={6}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Tulis kalimat motivasi atau prinsip hidupmu di sini…"
+            placeholder="Tulis kalimat intinya dulu (mis. 'jangan gampang menyerah'), lalu klik Rangkai dengan AI…"
             required
           />
-          <FieldDescription>Dikirim apa adanya lewat WhatsApp — tulis sudah dalam bentuk yang enak dibaca.</FieldDescription>
+          {generateError && <p className="text-xs text-destructive">{generateError}</p>}
+          <FieldDescription>
+            Dikirim apa adanya lewat WhatsApp. Tulis kalimat inti, klik &quot;Rangkai dengan AI&quot; buat dikembangkan jadi pesan
+            yang lebih lengkap — atau tulis sendiri langsung kalau sudah pas.
+          </FieldDescription>
         </Field>
       </FieldGroup>
       <DialogFooter className="-mx-0 -mb-0 rounded-none border-t-0 bg-transparent p-0">
