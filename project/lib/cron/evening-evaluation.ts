@@ -10,15 +10,15 @@ export async function runEveningEvaluation() {
 
   const total = data.stats.doneToday + data.stats.undoneCount
   const lines = [
-    `📋 Evaluasi Malam`,
+    `📋 Malem Mas Ony~ evaluasi hari ini nih dari Naya:`,
     ``,
     total === 0
-      ? "Tidak ada tugas yang tercatat untuk hari ini."
-      : `Dari ${total} tugas hari ini: ${data.stats.doneToday} selesai, ${data.stats.undoneCount} belum selesai.`,
+      ? "Gak ada tugas tercatat hari ini~"
+      : `Dari ${total} tugas hari ini: ${data.stats.doneToday} udah kelar, ${data.stats.undoneCount} masih belum.`,
   ]
 
   if (data.stats.highPriorityCount > 0) {
-    lines.push(`Masih ada ${data.stats.highPriorityCount} tugas prioritas tinggi yang belum selesai.`)
+    lines.push(`Masih ada ${data.stats.highPriorityCount} tugas prioritas tinggi yang belum kelar lho~`)
   }
 
   if (data.overdueFollowUps.length > 0) {
@@ -34,7 +34,7 @@ export async function runEveningEvaluation() {
   }
 
   lines.push("")
-  lines.push("Tugas yang belum selesai otomatis bisa dilanjutkan besok — cek menu Jadwal & Tugas.")
+  lines.push("Yang belum kelar bisa dilanjut besok ya, tinggal cek menu Jadwal & Tugas aja~")
 
   const message = lines.join("\n")
 

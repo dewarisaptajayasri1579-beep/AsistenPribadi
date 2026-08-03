@@ -45,10 +45,10 @@ export async function runScheduleReminders() {
 
     const time = formatJakartaTime(schedule.startAt)
     const message = [
-      `⏰ Pengingat Agenda`,
+      `⏰ Woy, sebentar lagi ada agenda nih~`,
       ``,
       `${schedule.title}`,
-      `Pukul ${time} WIB${schedule.location ? ` di ${schedule.location}` : ""}`,
+      `Jam ${time} WIB${schedule.location ? ` di ${schedule.location}` : ""}`,
       schedule.notes ? `Catatan: ${schedule.notes}` : "",
     ]
       .filter(Boolean)

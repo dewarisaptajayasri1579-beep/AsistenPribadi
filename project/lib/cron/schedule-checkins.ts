@@ -49,9 +49,9 @@ export async function runScheduleCheckins() {
 
     const time = formatJakartaTime(schedule.startAt)
     const message = [
-      `👋 Jadwal "${schedule.title}" (mulai ${time} WIB) sudah lewat.`,
+      `Mas Ony~ jangan lupa jadwal "${schedule.title}" (mulai ${time} WIB) tadi 👋`,
       ``,
-      `Sudah selesai? Balas "sudah" atau "belum" ya.`,
+      `Udah selesai apa belum nih? Balas "sudah" atau "belum" ya mas~`,
     ].join("\n")
 
     for (const recipient of recipients) {

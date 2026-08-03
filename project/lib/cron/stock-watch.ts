@@ -45,12 +45,12 @@ export async function runStockWatchCheck() {
     if (alreadyAlertedToday) continue
 
     const message = [
-      `📈 ${watch.ticker}${quote.companyName ? ` (${quote.companyName})` : ""} sekarang ${formatRupiah(quote.price)}`,
-      targetHit ? `Sudah capai target jual kamu (${formatRupiah(watch.targetPrice!)}).` : "",
+      `📈 Mas Ony, ${watch.ticker}${quote.companyName ? ` (${quote.companyName})` : ""} sekarang ${formatRupiah(quote.price)} nih~`,
+      targetHit ? `Udah nyampe target jual kamu (${formatRupiah(watch.targetPrice!)}) lho!` : "",
       percentHit && !targetHit
-        ? `Sudah untung ${watch.targetPercent}%+ dari harga beli (${formatRupiah(watch.buyPrice!)}).`
+        ? `Udah untung ${watch.targetPercent}%+ dari harga beli (${formatRupiah(watch.buyPrice!)})!`
         : "",
-      "(Harga dari Yahoo Finance, delay ~15-20 menit)",
+      "(Harga dari Yahoo Finance, delay ~15-20 menit ya)",
     ]
       .filter(Boolean)
       .join("\n")
