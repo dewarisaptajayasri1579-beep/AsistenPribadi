@@ -13,6 +13,7 @@ export async function register() {
   const { runRecurringScheduleTopUp } = await import("@/lib/cron/recurring-schedule-topup")
   const { runStockWatchCheck } = await import("@/lib/cron/stock-watch")
   const { runMotivationMessage } = await import("@/lib/cron/motivation-message")
+  const { runGombalMessage } = await import("@/lib/cron/gombal-message")
   const { registerWahubWebhook } = await import("@/lib/wahub")
 
   // Daftarkan ulang webhook WAHUB pakai env var yang aktif sekarang, tiap kali server start —
@@ -83,7 +84,18 @@ export async function register() {
     { timezone: "Asia/Jakarta" }
   )
 
+  // Gombalan dari Naya di jam acak, 07:00-22:00 WIB — tick tiap 20 menit, tiap tick punya
+  // probabilitas kecil untuk kirim (lihat lib/cron/gombal-message.ts) supaya jamnya beneran
+  // tidak bisa ditebak, bukan cuma "acak" di antara slot tetap.
+  cron.schedule(
+    "*/20 7-21 * * *",
+    () => {
+      runGombalMessage().catch((e) => console.error("[cron] gombal-message gagal:", e))
+    },
+    { timezone: "Asia/Jakarta" }
+  )
+
   console.log(
-    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00), cek harga saham (15 menit, jam bursa), pesan motivasi (tiap 3 jam 06:00-21:00) WIB"
+    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00), cek harga saham (15 menit, jam bursa), pesan motivasi (tiap 3 jam 06:00-21:00), gombalan Naya (acak 4-6x/hari, 07:00-22:00) WIB"
   )
 }
