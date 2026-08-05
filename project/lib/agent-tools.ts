@@ -145,6 +145,12 @@ export const toolDefinitions: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "get_open_tasks",
+    description:
+      "Mengambil SEMUA tugas yang belum selesai (todo/in_progress/postponed) beserta ID-nya, TANPA batasan tanggal — beda dari get_today_tasks (cuma hari ini) atau get_overdue_tasks (cuma yang telat). Panggil ini kalau pengguna menyebut judul/topik tugas (mis. 'Buat skenario sudah', 'aplikasi Panda gimana progressnya') supaya tahu tugas mana yang dimaksud dan ID-nya sebelum complete_task/update_task — jangan menebak ID atau bilang tidak tahu tanpa cek dulu.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
     name: "get_upcoming_agenda",
     description:
       "Mengambil jadwal & tugas (belum selesai) dalam rentang N hari ke depan mulai hari ini — pakai ini untuk pertanyaan seperti 'minggu depan ada apa', 'agenda 3 hari ke depan', dsb. Jangan pakai get_today_tasks untuk pertanyaan rentang tanggal.",
@@ -465,6 +471,14 @@ async function getOverdueTasks(ctx: ToolContext) {
   return { tasks }
 }
 
+async function getOpenTasks(ctx: ToolContext) {
+  const tasks = await prisma.task.findMany({
+    where: { userId: ctx.userId, status: { notIn: ["done"] } },
+    orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
+  })
+  return { tasks }
+}
+
 async function getUpcomingAgenda(ctx: ToolContext, input: any) {
   const days = typeof input?.days === "number" && input.days > 0 ? Math.min(Math.floor(input.days), 30) : 7
   const { start, end } = jakartaRangeFromToday(days)
@@ -656,6 +670,8 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getTodayTasks(ctx)
     case "get_overdue_tasks":
       return getOverdueTasks(ctx)
+    case "get_open_tasks":
+      return getOpenTasks(ctx)
     case "get_upcoming_agenda":
       return getUpcomingAgenda(ctx, input)
     case "create_follow_up":
