@@ -1,4 +1,5 @@
 import { getWorkspaceOwner } from "@/lib/current-user"
+import { rephraseMotivationMessage } from "@/lib/motivation-ai"
 import { prisma } from "@/lib/prisma"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
@@ -26,8 +27,18 @@ export async function runMotivationMessage() {
   const message = pickMotivationMessage(messages)
   lastId = message.id
 
+  // Rangkai ulang jadi variasi kalimat baru tiap kirim (tema/makna sama, kata-kata beda) —
+  // supaya tidak kerasa ngulang-ngulang persis. Kalau AI gagal, tetap kirim isi aslinya
+  // daripada gagal kirim sama sekali.
+  let content = message.content
   try {
-    await sendWhatsappMessage(owner.phoneNumber, message.content)
+    content = await rephraseMotivationMessage(message.content)
+  } catch (error) {
+    console.error("[cron] Gagal merangkai variasi pesan motivasi, kirim isi asli:", error)
+  }
+
+  try {
+    await sendWhatsappMessage(owner.phoneNumber, content)
   } catch (error) {
     console.error("[cron] Gagal kirim pesan motivasi WA:", error)
   }

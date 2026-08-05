@@ -27,3 +27,29 @@ export async function expandMotivationMessage(coreSentence: string): Promise<str
 
   return text
 }
+
+const REPHRASE_SYSTEM_PROMPT = `Kamu bikin variasi baru dari pesan motivasi/prinsip yang sudah tersimpan, supaya tiap dikirim kalimatnya beda-beda meski temanya sama — jangan sampai kerasa ngulang-ngulang persis ke penerima.
+
+Aturan:
+- Pertahankan makna/tema/pesan inti yang sama persis dengan aslinya — cuma cara penyampaiannya yang beda (kata-kata, susunan kalimat, sudut pandang). Jangan tambah gagasan baru.
+- Bahasa Indonesia, nada hangat & memotivasi, gaya ngobrol santai — bukan kalimat baku/menggurui.
+- Panjangnya kira-kira sama dengan pesan aslinya, jangan jauh lebih panjang.
+- Jangan pakai emoji berlebihan (0-1 saja kalau pas).
+- Balas HANYA isi pesan variasinya — tanpa tanda kutip, tanpa penjelasan, tanpa "Berikut adalah...".`
+
+/** Bikin variasi kalimat baru dari pesan motivasi yang sudah tersimpan — dipanggil tiap kirim
+ *  (cron motivation-message.ts) supaya tidak terasa ngulang-ngulang walau sumbernya sama. */
+export async function rephraseMotivationMessage(originalContent: string): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 300,
+    system: REPHRASE_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: originalContent }],
+  })
+
+  const textBlock = response.content.find((block): block is Anthropic.TextBlock => block.type === "text")
+  const text = textBlock?.text.trim()
+  if (!text) throw new Error("AI tidak menghasilkan teks")
+
+  return text
+}
