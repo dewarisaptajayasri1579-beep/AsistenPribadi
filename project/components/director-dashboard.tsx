@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { CalendarDays, CircleCheckBig, Flag } from "lucide-react"
 
-import { AgendaTimeline } from "@/components/agenda-timeline"
 import { AiAssistantPanel } from "@/components/ai-assistant-panel"
 import { AiBriefing } from "@/components/ai-briefing"
 import { AiCommandDialog } from "@/components/ai-command-dialog"
@@ -35,8 +34,7 @@ export function DirectorDashboard({ userName, data }: DirectorDashboardProps) {
             <SummaryCard title="Prioritas Tinggi" value={data.summary.highPriorityCount} supportingText="Tugas" icon={Flag} tone="rose" />
           </section>
 
-          <section aria-label="Agenda dan prioritas" className="grid grid-cols-1 gap-4 min-[1200px]:grid-cols-[minmax(0,1.15fr)_minmax(300px,1fr)] xl:gap-5">
-            <AgendaTimeline items={data.agenda} />
+          <section aria-label="Prioritas">
             <PriorityList items={data.priorities} />
           </section>
 
