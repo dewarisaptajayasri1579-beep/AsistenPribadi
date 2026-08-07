@@ -34,6 +34,7 @@ interface WahubIncomingMessage {
   /** JID chat asal pesan ini (beda dari "from" kalau pesannya dari GRUP — "from" sudah
    *  di-resolve ke JID pengirimnya, bukan chat/grupnya). Grup selalu berakhiran "@g.us". */
   chatId?: string
+  isGroup?: boolean
   to?: string
   body?: string
   hasMedia?: boolean
@@ -99,6 +100,15 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
       console.error("[whatsapp webhook] gagal forward pesan grup ops ke simple-system:", error)
     }
     return { skipped: "forwarded group message to simple-system" }
+  }
+
+  // Naya (Director Assistant) itu asisten PRIBADI 1:1 — bukan buat grup. Kalau chatId di atas
+  // tidak cocok grup ops simple-system (termasuk kalau SIMPLE_SYSTEM_GROUP_JID belum di-set sama
+  // sekali), pesan dari grup MANAPUN tetap tidak boleh diproses Naya — jangan sampai dia ikut
+  // membalas pribadi ke pengirimnya cuma karena pengirimnya kebetulan user terdaftar. Diam saja.
+  if (message.isGroup) {
+    console.log("[whatsapp webhook] skip: pesan dari grup lain (bukan grup ops simple-system), chatId=", message.chatId)
+    return { skipped: "group message not for Naya" }
   }
 
   const digits = message.senderNumber || message.from.replace(/@.*$/, "")
