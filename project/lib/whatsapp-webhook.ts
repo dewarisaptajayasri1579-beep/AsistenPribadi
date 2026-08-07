@@ -31,6 +31,9 @@ interface WahubIncomingMessage {
   from?: string
   senderNumber?: string
   senderName?: string | null
+  /** JID chat asal pesan ini (beda dari "from" kalau pesannya dari GRUP — "from" sudah
+   *  di-resolve ke JID pengirimnya, bukan chat/grupnya). Grup selalu berakhiran "@g.us". */
+  chatId?: string
   to?: string
   body?: string
   hasMedia?: boolean
@@ -71,13 +74,15 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
     return { skipped: "empty body" }
   }
 
-  // Pesan dari WA Grup ops simple-system — sesi WA ini (Director Assistant) yang jadi anggota
-  // grupnya, jadi webhook grup itu WAJIB lewat sini dulu. Cukup diteruskan mentah-mentah ke
-  // webhook simple-system sendiri (yang sudah bisa jawab piutang/keuangan/dsb lewat agent-nya) —
-  // simple-system yang urus balasannya sendiri (dia numpang WAHUB_API_KEY yang sama), jadi
-  // Director Assistant/Naya TIDAK ikut memproses pesan ini sama sekali.
+  // Pesan dari WA Grup ops simple-system — dideteksi lewat "chatId" (JID grup, "...@g.us"),
+  // BUKAN "from" (itu sudah di-resolve ke JID pengirimnya sendiri, bukan grupnya — lihat
+  // backend-wahub). Sesi WA ini (Director Assistant) yang jadi anggota grupnya, jadi webhook
+  // grup itu WAJIB lewat sini dulu. Cukup diteruskan mentah-mentah ke webhook simple-system
+  // sendiri (yang sudah bisa jawab piutang/keuangan/dsb lewat agent-nya) — simple-system yang
+  // urus balasannya sendiri (dia numpang WAHUB_API_KEY yang sama), jadi Director Assistant/Naya
+  // TIDAK ikut memproses pesan ini sama sekali.
   const simpleSystemGroupJid = process.env.SIMPLE_SYSTEM_GROUP_JID
-  if (simpleSystemGroupJid && message.from === simpleSystemGroupJid) {
+  if (simpleSystemGroupJid && message.chatId === simpleSystemGroupJid) {
     const baseUrl = process.env.SIMPLE_SYSTEM_BASE_URL
     const secret = process.env.SIMPLE_SYSTEM_WEBHOOK_SECRET
     if (!baseUrl || !secret) {
