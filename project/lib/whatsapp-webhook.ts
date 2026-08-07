@@ -71,6 +71,31 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
     return { skipped: "empty body" }
   }
 
+  // Pesan dari WA Grup ops simple-system — sesi WA ini (Director Assistant) yang jadi anggota
+  // grupnya, jadi webhook grup itu WAJIB lewat sini dulu. Cukup diteruskan mentah-mentah ke
+  // webhook simple-system sendiri (yang sudah bisa jawab piutang/keuangan/dsb lewat agent-nya) —
+  // simple-system yang urus balasannya sendiri (dia numpang WAHUB_API_KEY yang sama), jadi
+  // Director Assistant/Naya TIDAK ikut memproses pesan ini sama sekali.
+  const simpleSystemGroupJid = process.env.SIMPLE_SYSTEM_GROUP_JID
+  if (simpleSystemGroupJid && message.from === simpleSystemGroupJid) {
+    const baseUrl = process.env.SIMPLE_SYSTEM_BASE_URL
+    const secret = process.env.SIMPLE_SYSTEM_WEBHOOK_SECRET
+    if (!baseUrl || !secret) {
+      console.warn("[whatsapp webhook] skip: SIMPLE_SYSTEM_BASE_URL/SIMPLE_SYSTEM_WEBHOOK_SECRET belum di-set, tidak bisa forward pesan grup ops")
+      return { skipped: "relay not configured" }
+    }
+    try {
+      await fetch(`${baseUrl}/api/whatsapp/webhook?secret=${secret}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+    } catch (error) {
+      console.error("[whatsapp webhook] gagal forward pesan grup ops ke simple-system:", error)
+    }
+    return { skipped: "forwarded group message to simple-system" }
+  }
+
   const digits = message.senderNumber || message.from.replace(/@.*$/, "")
   const sender = await findRegisteredSender(digits)
 
