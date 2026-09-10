@@ -1,12 +1,22 @@
-import { getWorkspaceOwner } from "@/lib/current-user"
-import { prisma } from "@/lib/prisma"
+import { getAllWorkspaceOwners } from "@/lib/current-user"
+import { getOwnerRecipients } from "@/lib/cron/recipients"
 import { getDailyReportData } from "@/lib/report-queries"
 import { sendPushToUser } from "@/lib/push"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 export async function runEveningEvaluation() {
-  const owner = await getWorkspaceOwner()
-  const data = await getDailyReportData(owner.id)
+  // Sekali per direktur, tiap direktur diisolasi errornya — lihat morning-briefing.ts.
+  for (const owner of await getAllWorkspaceOwners()) {
+    try {
+      await sendEveningEvaluationFor(owner.id)
+    } catch (error) {
+      console.error(`[cron] evaluasi malam gagal untuk ${owner.name}:`, error)
+    }
+  }
+}
+
+async function sendEveningEvaluationFor(ownerId: string) {
+  const data = await getDailyReportData(ownerId)
 
   const total = data.stats.doneToday + data.stats.undoneCount
   const lines = [
@@ -38,22 +48,20 @@ export async function runEveningEvaluation() {
 
   const message = lines.join("\n")
 
-  const recipients = await prisma.user.findMany({
-    where: { notifyDailyReport: true },
-  })
+  // Evaluasi berisi capaian direktur ini — cuma untuk dia, bukan semua user ber-notifyDailyReport.
+  const recipient = (await getOwnerRecipients([ownerId], "notifyDailyReport")).get(ownerId)
+  if (!recipient) return
 
-  for (const recipient of recipients) {
-    if (recipient.phoneNumber) {
-      try {
-        await sendWhatsappMessage(recipient.phoneNumber, message)
-      } catch (error) {
-        console.error(`[cron] Gagal kirim evaluasi malam WA ke ${recipient.name}:`, error)
-      }
-    }
+  if (recipient.phoneNumber) {
     try {
-      await sendPushToUser(recipient.id, { title: "📋 Evaluasi Malam", body: message, url: "/laporan" })
+      await sendWhatsappMessage(recipient.phoneNumber, message)
     } catch (error) {
-      console.error(`[cron] Gagal kirim evaluasi malam push ke ${recipient.name}:`, error)
+      console.error(`[cron] Gagal kirim evaluasi malam WA ke ${recipient.name}:`, error)
     }
+  }
+  try {
+    await sendPushToUser(recipient.id, { title: "📋 Evaluasi Malam", body: message, url: "/laporan" })
+  } catch (error) {
+    console.error(`[cron] Gagal kirim evaluasi malam push ke ${recipient.name}:`, error)
   }
 }

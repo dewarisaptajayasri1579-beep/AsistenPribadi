@@ -1,5 +1,5 @@
 import { jakartaTodayDateIso } from "@/lib/datetime"
-import { getWorkspaceOwner } from "@/lib/current-user"
+import { getAllWorkspaceOwners } from "@/lib/current-user"
 import { generateGombalMessage } from "@/lib/gombal-ai"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
@@ -9,7 +9,17 @@ import { sendWhatsappMessage } from "@/lib/wahub"
 const TICK_PROBABILITY = 1 / 9 // ~45 tick/hari (jendela 15 jam / 20 menit) * 1/9 ≈ 5x/hari
 const MIN_GAP_MS = 45 * 60 * 1000
 
-let state = { date: "", target: 0, count: 0, lastSentAt: 0 }
+interface GombalState {
+  date: string
+  target: number
+  count: number
+  lastSentAt: number
+}
+
+// State-nya PER DIREKTUR. Kalau satu variabel dipakai bersama, "4-6x sehari" jadi jatah kolektif:
+// gombalan untuk direktur A menaikkan count yang sama, dan MIN_GAP_MS-nya ikut memblokir direktur
+// B — jadi makin banyak direktur, makin sedikit yang masing-masing terima.
+const stateByOwner = new Map<string, GombalState>()
 
 function rollDailyTarget() {
   return 4 + Math.floor(Math.random() * 3) // 4, 5, atau 6
@@ -17,16 +27,29 @@ function rollDailyTarget() {
 
 export async function runGombalMessage() {
   const today = jakartaTodayDateIso()
-  if (state.date !== today) {
+
+  for (const owner of await getAllWorkspaceOwners()) {
+    try {
+      await maybeSendGombalFor(owner.id, owner.phoneNumber, today)
+    } catch (error) {
+      console.error(`[cron] gombalan gagal untuk ${owner.name}:`, error)
+    }
+  }
+}
+
+async function maybeSendGombalFor(ownerId: string, phoneNumber: string | null, today: string) {
+  if (!phoneNumber) return
+
+  let state = stateByOwner.get(ownerId)
+  if (!state || state.date !== today) {
     state = { date: today, target: rollDailyTarget(), count: 0, lastSentAt: 0 }
+    stateByOwner.set(ownerId, state)
   }
 
   if (state.count >= state.target) return
   if (state.lastSentAt && Date.now() - state.lastSentAt < MIN_GAP_MS) return
+  // Diundi terpisah tiap direktur, jadi jam kirimnya juga tidak barengan.
   if (Math.random() > TICK_PROBABILITY) return
-
-  const owner = await getWorkspaceOwner()
-  if (!owner.phoneNumber) return
 
   let content: string
   try {
@@ -37,7 +60,7 @@ export async function runGombalMessage() {
   }
 
   try {
-    await sendWhatsappMessage(owner.phoneNumber, content)
+    await sendWhatsappMessage(phoneNumber, content)
     state.count += 1
     state.lastSentAt = Date.now()
   } catch (error) {
