@@ -16,31 +16,37 @@ export async function POST(request: Request) {
   const existing = await prisma.user.findUnique({ where: { email } })
 
   if (existing) {
-    if (existing.passwordHash) {
+    // Akun yang sudah punya password ATAU sudah disetujui admin tidak boleh "diklaim" — kalau
+    // tidak, siapapun yang tahu email seorang direktur bisa mengambil alih akunnya (beserta
+    // seluruh isi workspace-nya) cukup dengan mendaftar ulang memakai email itu.
+    if (existing.passwordHash || existing.approvedAt) {
       return NextResponse.json({ error: "Email sudah terdaftar. Silakan login." }, { status: 409 })
     }
-    // Akun lama (mis. hasil seed) yang belum pernah set password — klaim akun ini.
+    // Akun lama (mis. hasil seed) yang belum pernah set password & belum disetujui — klaim akun ini.
     const user = await prisma.user.update({
       where: { id: existing.id },
       data: { passwordHash: hashPassword(password), name: name || existing.name },
     })
     await createSession(user.id)
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, pending: true })
   }
 
   if (!name) {
     return NextResponse.json({ error: "Nama wajib diisi" }, { status: 400 })
   }
 
+  // Pendaftar baru = calon direktur dengan workspace-nya SENDIRI (ownerId null), tapi statusnya
+  // menunggu persetujuan admin (approvedAt null): belum bisa melihat data apapun dan Naya tidak
+  // akan membalas WhatsApp-nya. Lihat getCurrentUser/getApiUser di lib/current-user.ts.
   const user = await prisma.user.create({
     data: {
       name,
       email,
       passwordHash: hashPassword(password),
-      role: "Tim",
+      role: "Direktur",
     },
   })
 
   await createSession(user.id)
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, pending: true })
 }

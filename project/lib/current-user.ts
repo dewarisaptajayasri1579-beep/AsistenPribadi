@@ -3,10 +3,13 @@ import { redirect } from "next/navigation"
 import { getSessionUser } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
-/** User yang sedang login (untuk personalisasi & audit trail). Redirect ke /login jika belum login. */
+/** User yang sedang login (untuk personalisasi & audit trail). Redirect ke /login jika belum login,
+ *  atau ke halaman tunggu kalau pendaftarannya belum disetujui admin. Karena semua halaman memakai
+ *  fungsi ini, satu pemeriksaan di sini sudah mengunci seluruh aplikasi dari akun yang pending. */
 export async function getCurrentUser() {
   const user = await getSessionUser()
   if (!user) redirect("/login")
+  if (!user.approvedAt) redirect("/menunggu-persetujuan")
   return user
 }
 
@@ -15,9 +18,13 @@ export async function getOptionalCurrentUser() {
   return getSessionUser()
 }
 
-/** Untuk Route Handlers (API) — tidak bisa pakai redirect(), jadi kembalikan null saja. */
+/** Untuk Route Handlers (API) — tidak bisa pakai redirect(), jadi kembalikan null saja.
+ *  Akun yang belum disetujui diperlakukan seperti belum login: seluruh API route yang memakai
+ *  fungsi ini otomatis menolaknya tanpa perlu menambah pemeriksaan satu per satu. */
 export async function getApiUser() {
-  return getSessionUser()
+  const user = await getSessionUser()
+  if (!user?.approvedAt) return null
+  return user
 }
 
 /** Direktur pemilik workspace tempat `user` bekerja: dirinya sendiri kalau dia direktur,

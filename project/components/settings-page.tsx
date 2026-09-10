@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Bell, Bot, Save, Settings, TrendingUp, UserRound } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
+import { ManageDirectorsCard } from "@/components/manage-directors-card"
 import { PageHeading } from "@/components/page-heading"
 import { PushNotificationCard } from "@/components/push-notification-card"
 import { Button } from "@/components/ui/button"
@@ -29,7 +30,14 @@ interface SettingsValues {
   stockNotifyPhone2: string
 }
 
-export function SettingsPage({ initial }: { initial: SettingsValues }) {
+export function SettingsPage({
+  initial,
+  admin,
+}: {
+  initial: SettingsValues
+  /** Diisi hanya kalau user yang login adalah admin — panel Kelola Direktur ikut dirender. */
+  admin?: { currentUserId: string }
+}) {
   const router = useRouter()
   const [values, setValues] = useState(initial)
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
@@ -236,6 +244,8 @@ export function SettingsPage({ initial }: { initial: SettingsValues }) {
               </FieldGroup>
             </CardContent>
           </Card>
+
+          {admin && <ManageDirectorsCard currentUserId={admin.currentUserId} />}
         </div>
       </form>
     </AppShell>

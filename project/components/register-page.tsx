@@ -30,7 +30,9 @@ export function RegisterPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Gagal mendaftar")
-      router.push("/")
+      // Akun baru selalu menunggu persetujuan admin — antar langsung ke halaman tunggunya supaya
+      // jelas kenapa datanya belum bisa dibuka (kalau ke "/", dia cuma kena redirect diam-diam).
+      router.push(data.pending ? "/menunggu-persetujuan" : "/")
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mendaftar")
@@ -49,7 +51,9 @@ export function RegisterPage() {
             <span className="col-span-2 rounded-sm bg-primary/80" />
           </div>
           <CardTitle className="text-xl">Buat Akun</CardTitle>
-          <CardDescription>Gabung ke workspace Director Daily Assistant.</CardDescription>
+          <CardDescription>
+            Daftar dulu, lalu tunggu akunmu disetujui admin sebelum bisa dipakai.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
