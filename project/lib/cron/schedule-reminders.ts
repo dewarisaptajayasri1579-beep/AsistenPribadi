@@ -1,3 +1,4 @@
+import { getOwnerRecipients } from "@/lib/cron/recipients"
 import { formatJakartaTime } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { sendPushToUser } from "@/lib/push"
@@ -20,18 +21,12 @@ export async function runScheduleReminders() {
 
   if (upcoming.length === 0) return
 
-  const recipients = await prisma.user.findMany({
-    where: { notifyAgenda: true },
-  })
-
-  if (recipients.length === 0) {
-    // Tetap tandai reminded supaya tidak diproses berulang tanpa penerima.
-    await prisma.schedule.updateMany({
-      where: { id: { in: upcoming.map((s) => s.id) } },
-      data: { remindedAt: now },
-    })
-    return
-  }
+  // Reminder dikirim ke PEMILIK jadwalnya masing-masing, bukan ke semua user yang mengaktifkan
+  // notifyAgenda — lihat penjelasan di lib/cron/recipients.ts.
+  const recipients = await getOwnerRecipients(
+    upcoming.map((s) => s.userId),
+    "notifyAgenda"
+  )
 
   for (const schedule of upcoming) {
     // Klaim dulu secara atomic sebelum kirim — kalau ada proses lain (mis. tabrakan
@@ -42,6 +37,11 @@ export async function runScheduleReminders() {
       data: { remindedAt: now },
     })
     if (claim.count === 0) continue
+
+    // Sudah diklaim di atas supaya tidak diproses berulang, walau ternyata pemiliknya mematikan
+    // notifikasi agenda (atau akunnya sudah tidak ada).
+    const recipient = recipients.get(schedule.userId)
+    if (!recipient) continue
 
     const time = formatJakartaTime(schedule.startAt)
     const message = [
@@ -54,19 +54,17 @@ export async function runScheduleReminders() {
       .filter(Boolean)
       .join("\n")
 
-    for (const recipient of recipients) {
-      if (recipient.phoneNumber) {
-        try {
-          await sendWhatsappMessage(recipient.phoneNumber, message)
-        } catch (error) {
-          console.error(`[cron] Gagal kirim reminder WA ke ${recipient.name}:`, error)
-        }
-      }
+    if (recipient.phoneNumber) {
       try {
-        await sendPushToUser(recipient.id, { title: "⏰ Pengingat Agenda", body: message, url: "/jadwal" })
+        await sendWhatsappMessage(recipient.phoneNumber, message)
       } catch (error) {
-        console.error(`[cron] Gagal kirim reminder push ke ${recipient.name}:`, error)
+        console.error(`[cron] Gagal kirim reminder WA ke ${recipient.name}:`, error)
       }
+    }
+    try {
+      await sendPushToUser(recipient.id, { title: "⏰ Pengingat Agenda", body: message, url: "/jadwal" })
+    } catch (error) {
+      console.error(`[cron] Gagal kirim reminder push ke ${recipient.name}:`, error)
     }
   }
 }
