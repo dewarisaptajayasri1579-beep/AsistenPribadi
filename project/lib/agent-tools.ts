@@ -151,6 +151,12 @@ export const toolDefinitions: Anthropic.Tool[] = [
     input_schema: { type: "object", properties: {} },
   },
   {
+    name: "get_all_open_work",
+    description:
+      "Mengambil SELURUH pekerjaan yang belum kelar dalam SATU panggilan: tugas (Task) yang belum selesai, follow-up yang masih terbuka, DAN jadwal yang sudah lewat tapi belum ditandai selesai. WAJIB pakai ini — bukan get_open_tasks — untuk pertanyaan umum seperti 'kerjaanku yang belum selesai apa', 'apa aja yang masih nunggak', 'PR-ku apa', 'aku masih ada tanggungan apa', 'ada yang belum kelar nggak'. get_open_tasks cuma mengembalikan Task saja, jadi kalau dipakai untuk pertanyaan umum, follow-up & jadwal tertunda pengguna akan hilang dari jawaban.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
     name: "get_upcoming_agenda",
     description:
       "Mengambil jadwal & tugas (belum selesai) dalam rentang N hari ke depan mulai hari ini — pakai ini untuk pertanyaan seperti 'minggu depan ada apa', 'agenda 3 hari ke depan', dsb. Jangan pakai get_today_tasks untuk pertanyaan rentang tanggal.",
@@ -479,6 +485,53 @@ async function getOpenTasks(ctx: ToolContext) {
   return { tasks }
 }
 
+/** Semua "tanggungan" pengguna dari KETIGA sumber sekaligus (Task + FollowUp + Schedule tertunda).
+ *  Sengaja satu tool, bukan menyuruh model memanggil tiga tool berurutan: model cenderung berhenti
+ *  begitu tool pertama sudah mengembalikan hasil yang "kelihatan menjawab", jadi follow-up & jadwal
+ *  tertunda diam-diam hilang dari jawaban. */
+const STALE_SCHEDULE_WINDOW_DAYS = 14
+
+async function getAllOpenWork(ctx: ToolContext) {
+  const { start } = jakartaTodayRange()
+  const now = new Date()
+
+  const [tasks, followUps, schedules] = await Promise.all([
+    prisma.task.findMany({
+      where: { userId: ctx.userId, status: { notIn: ["done"] } },
+      orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
+    }),
+    prisma.followUp.findMany({
+      where: { userId: ctx.userId, status: "open" },
+      orderBy: { dueDate: "asc" },
+    }),
+    // Jadwal yang waktunya sudah lewat tapi belum ditandai selesai — ini "tanggungan" juga,
+    // beda dari agenda mendatang yang memang belum waktunya dikerjakan. Dua penyaring penting:
+    // (1) recurrenceId null saja — jadwal rutin (wiridan/doa harian) memang tidak pernah ditandai
+    //     selesai satu per satu, jadi statusnya selamanya "confirmed" dan bukan tanggungan nyata;
+    //     tanpa filter ini hasilnya ratusan baris yang menenggelamkan tugas & follow-up asli.
+    // (2) dibatasi 14 hari terakhir & maks 15 — jadwal sekali-jalan yang sudah lewat sebulan lebih
+    //     praktis sudah tidak relevan diungkit, sekaligus menjaga payload tetap hemat token.
+    prisma.schedule.findMany({
+      where: {
+        userId: ctx.userId,
+        status: { notIn: ["cancelled", "done"] },
+        recurrenceId: null,
+        startAt: { gte: new Date(now.getTime() - STALE_SCHEDULE_WINDOW_DAYS * 86400_000), lt: now },
+      },
+      orderBy: { startAt: "desc" },
+      take: 15,
+    }),
+  ])
+
+  return {
+    tugas: tasks.map((t) => ({ ...t, terlambat: !!t.dueDate && t.dueDate < start })),
+    followUps: followUps.map((f) => ({ ...f, terlambat: !!f.dueDate && f.dueDate < start })),
+    jadwalBelumDitutup: withScheduleLabels(schedules),
+    catatanJadwal: `Hanya jadwal sekali-jalan (bukan jadwal rutin) dari ${STALE_SCHEDULE_WINDOW_DAYS} hari terakhir yang belum ditandai selesai, maks 15 terbaru.`,
+    totalItem: tasks.length + followUps.length + schedules.length,
+  }
+}
+
 async function getUpcomingAgenda(ctx: ToolContext, input: any) {
   const days = typeof input?.days === "number" && input.days > 0 ? Math.min(Math.floor(input.days), 30) : 7
   const { start, end } = jakartaRangeFromToday(days)
@@ -672,6 +725,8 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getOverdueTasks(ctx)
     case "get_open_tasks":
       return getOpenTasks(ctx)
+    case "get_all_open_work":
+      return getAllOpenWork(ctx)
     case "get_upcoming_agenda":
       return getUpcomingAgenda(ctx, input)
     case "create_follow_up":
