@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { runAgent } from "@/lib/agent"
 import { getApiUser, getWorkspaceOwner } from "@/lib/current-user"
 import { modelLabel } from "@/lib/pricing"
+import { sapaanOf } from "@/lib/sapaan"
 
 export async function POST(request: Request) {
   const actor = await getApiUser()
@@ -21,6 +22,8 @@ export async function POST(request: Request) {
     ownerId: owner.id,
     actorId: actor.id,
     command: command.trim(),
+    // Sapaan mengikuti siapa yang sedang mengetik, bukan pemilik workspace-nya.
+    sapaan: sapaanOf(actor),
     assistantInstructions: actor.assistantInstructions,
   }
 

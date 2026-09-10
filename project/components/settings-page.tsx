@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 interface SettingsValues {
   name: string
   role: string
+  sapaan: string
   email: string
   phoneNumber: string
   assistantInstructions: string
@@ -107,6 +108,19 @@ export function SettingsPage({
                 <Field>
                   <FieldLabel htmlFor="role">Jabatan</FieldLabel>
                   <Input id="role" value={values.role} onChange={(e) => update("role", e.target.value)} />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="sapaan">Sapaan dari Naya</FieldLabel>
+                  <Input
+                    id="sapaan"
+                    placeholder="Mas Ony"
+                    value={values.sapaan}
+                    onChange={(e) => update("sapaan", e.target.value)}
+                  />
+                  <FieldDescription>
+                    Dipakai Naya di semua pesan — chat, briefing pagi, reminder, sampai gombalan.
+                    Kosongkan untuk pakai nama depanmu.
+                  </FieldDescription>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="email">Email</FieldLabel>

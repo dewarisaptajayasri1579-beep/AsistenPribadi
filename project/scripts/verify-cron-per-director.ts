@@ -40,6 +40,7 @@ async function main() {
       name: "TEST Budi Cron",
       email: "test-budi-cron@example.invalid",
       phoneNumber: "081999000111",
+      sapaan: "Pak Budi",
       approvedAt: new Date(),
     },
   })
@@ -81,6 +82,16 @@ async function main() {
       toBudi.some((s) => s.message.includes("PENANDA-BUDI audit gudang"))
     )
     check("tidak ada nomor asing yang dikirimi", sent.every((s) => /^62/.test(s.number)))
+
+    // Sapaan per direktur (Fase 4): Budi tidak boleh dipanggil dengan sapaan Ony.
+    check(
+      "Budi disapa 'Pak Budi', bukan sapaan Ony",
+      toBudi.some((s) => s.message.includes("Pak Budi")) && toBudi.every((s) => !s.message.includes("Mas Ony"))
+    )
+    check(
+      "Ony tetap disapa 'Mas Ony'",
+      toOny.some((s) => s.message.includes("Mas Ony")) && toOny.every((s) => !s.message.includes("Pak Budi"))
+    )
   } finally {
     await prisma.task.deleteMany({ where: { userId: budi.id } })
     await prisma.motivationMessage.deleteMany({ where: { userId: budi.id } })

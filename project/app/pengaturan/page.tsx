@@ -12,6 +12,7 @@ export default async function Page() {
       initial={{
         name: user.name,
         role: user.role,
+        sapaan: user.sapaan ?? "",
         email: user.email,
         phoneNumber: user.phoneNumber ?? "",
         assistantInstructions: user.assistantInstructions ?? "",

@@ -1,5 +1,6 @@
 import { isSameJakartaDay } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
+import { sapaanOf } from "@/lib/sapaan"
 import { sendWhatsappMessage } from "@/lib/wahub"
 import { getStockPrice } from "@/lib/stock-price"
 
@@ -45,7 +46,7 @@ export async function runStockWatchCheck() {
     if (alreadyAlertedToday) continue
 
     const message = [
-      `📈 Mas Ony, ${watch.ticker}${quote.companyName ? ` (${quote.companyName})` : ""} sekarang ${formatRupiah(quote.price)} nih~`,
+      `📈 ${sapaanOf(watch.user)}, ${watch.ticker}${quote.companyName ? ` (${quote.companyName})` : ""} sekarang ${formatRupiah(quote.price)} nih~`,
       targetHit ? `Udah nyampe target jual kamu (${formatRupiah(watch.targetPrice!)}) lho!` : "",
       percentHit && !targetHit
         ? `Udah untung ${watch.targetPercent}%+ dari harga beli (${formatRupiah(watch.buyPrice!)})!`

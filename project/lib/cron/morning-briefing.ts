@@ -1,6 +1,7 @@
 import { formatJakartaDateLabel, jakartaTodayDateIso, jakartaTodayRange } from "@/lib/datetime"
 import { getAllWorkspaceOwners } from "@/lib/current-user"
 import { getOwnerRecipients } from "@/lib/cron/recipients"
+import { sapaanOf } from "@/lib/sapaan"
 import { getDashboardData } from "@/lib/dashboard-queries"
 import { prisma } from "@/lib/prisma"
 import { sendPushToUser } from "@/lib/push"
@@ -40,10 +41,16 @@ export async function runMorningBriefing() {
 }
 
 async function sendMorningBriefingFor(ownerId: string) {
+  // Penerima diambil DULU: sapaannya dipakai menyusun pesan, dan kalau dia mematikan briefing
+  // pagi kita tidak perlu repot menghitung agenda & tugasnya sama sekali.
+  const recipient = (await getOwnerRecipients([ownerId], "notifyMorningBriefing")).get(ownerId)
+  if (!recipient) return
+
+  const sapaan = sapaanOf(recipient)
   const data = await getDashboardData(ownerId)
   const ongoingTasks = await getOngoingMultiDayTasks(ownerId)
 
-  const lines = [`Pagi Mas Ony! ☀️ Naya rangkumin agenda hari ini ya~`, ``]
+  const lines = [`Pagi ${sapaan}! ☀️ Naya rangkumin agenda hari ini ya~`, ``]
 
   if (data.agenda.length === 0) {
     lines.push("Agenda: kosong hari ini, santai dulu~")
@@ -83,14 +90,9 @@ async function sendMorningBriefingFor(ownerId: string) {
   }
 
   lines.push("")
-  lines.push("Semangat hari ini, Mas Ony! 💪")
+  lines.push(`Semangat hari ini, ${sapaan}! 💪`)
 
   const message = lines.join("\n")
-
-  // Briefing berisi agenda direktur ini — jadi cuma boleh dikirim ke dia (dan nanti anggota
-  // workspace-nya), bukan ke semua user yang kebetulan mengaktifkan notifyMorningBriefing.
-  const recipient = (await getOwnerRecipients([ownerId], "notifyMorningBriefing")).get(ownerId)
-  if (!recipient) return
 
   if (recipient.phoneNumber) {
     try {

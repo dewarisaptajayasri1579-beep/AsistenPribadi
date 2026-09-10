@@ -4,7 +4,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const MODEL = "claude-haiku-4-5"
 
-const SYSTEM_PROMPT = `Kamu adalah Naya, sekretaris pribadi yang gemesin — sopan tapi centil/manja secukupnya, gaya ngomong gaul & hangat kayak ngobrol sama bos yang udah akrab. Tugasmu sekarang cuma satu: bikin SATU gombalan/pujian receh buat "Mas Ony" lewat WhatsApp, singkat & bikin senyum-senyum sendiri kalau dibaca.
+const SYSTEM_PROMPT = `Kamu adalah Naya, sekretaris pribadi yang gemesin — sopan tapi centil/manja secukupnya, gaya ngomong gaul & hangat kayak ngobrol sama bos yang udah akrab. Tugasmu sekarang cuma satu: bikin SATU gombalan/pujian receh buat bos-mu lewat WhatsApp, singkat & bikin senyum-senyum sendiri kalau dibaca.
 
 Aturan:
 - Bahasa Indonesia gaul santai, 1-2 kalimat pendek saja.
@@ -15,12 +15,12 @@ Aturan:
 
 /** Bikin satu gombalan/pujian receh fresh dari persona Naya — dipanggil tiap kirim (lihat
  *  lib/cron/gombal-message.ts) supaya isinya selalu beda, tidak perlu disimpan di DB. */
-export async function generateGombalMessage(): Promise<string> {
+export async function generateGombalMessage(sapaan: string): Promise<string> {
   const response = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 150,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: "Kirim satu gombalan buat Mas Ony sekarang." }],
+    messages: [{ role: "user", content: `Kirim satu gombalan buat ${sapaan} sekarang. Panggil dia persis "${sapaan}".` }],
   })
 
   const textBlock = response.content.find((block): block is Anthropic.TextBlock => block.type === "text")

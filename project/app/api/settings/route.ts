@@ -10,6 +10,7 @@ export async function GET() {
   return NextResponse.json({
     name: user.name,
     role: user.role,
+    sapaan: user.sapaan ?? "",
     email: user.email,
     phoneNumber: user.phoneNumber ?? "",
     assistantInstructions: user.assistantInstructions ?? "",
@@ -36,6 +37,7 @@ export async function PATCH(request: Request) {
   const data: Record<string, unknown> = {}
   if (typeof body.name === "string") data.name = body.name
   if (typeof body.role === "string") data.role = body.role
+  if (typeof body.sapaan === "string") data.sapaan = body.sapaan.trim() || null
   if (typeof body.email === "string") data.email = body.email
   if (typeof body.phoneNumber === "string") data.phoneNumber = body.phoneNumber || null
   if (typeof body.assistantInstructions === "string") data.assistantInstructions = body.assistantInstructions

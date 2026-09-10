@@ -1,5 +1,6 @@
 import { getAllWorkspaceOwners } from "@/lib/current-user"
 import { getOwnerRecipients } from "@/lib/cron/recipients"
+import { sapaanOf } from "@/lib/sapaan"
 import { getDailyReportData } from "@/lib/report-queries"
 import { sendPushToUser } from "@/lib/push"
 import { sendWhatsappMessage } from "@/lib/wahub"
@@ -16,11 +17,15 @@ export async function runEveningEvaluation() {
 }
 
 async function sendEveningEvaluationFor(ownerId: string) {
+  // Sama seperti briefing pagi: penerima dulu, karena sapaannya dipakai di kalimat pembuka.
+  const recipient = (await getOwnerRecipients([ownerId], "notifyDailyReport")).get(ownerId)
+  if (!recipient) return
+
   const data = await getDailyReportData(ownerId)
 
   const total = data.stats.doneToday + data.stats.undoneCount
   const lines = [
-    `📋 Malem Mas Ony~ evaluasi hari ini nih dari Naya:`,
+    `📋 Malem ${sapaanOf(recipient)}~ evaluasi hari ini nih dari Naya:`,
     ``,
     total === 0
       ? "Gak ada tugas tercatat hari ini~"
@@ -47,10 +52,6 @@ async function sendEveningEvaluationFor(ownerId: string) {
   lines.push("Yang belum kelar bisa dilanjut besok ya, tinggal cek menu Jadwal & Tugas aja~")
 
   const message = lines.join("\n")
-
-  // Evaluasi berisi capaian direktur ini — cuma untuk dia, bukan semua user ber-notifyDailyReport.
-  const recipient = (await getOwnerRecipients([ownerId], "notifyDailyReport")).get(ownerId)
-  if (!recipient) return
 
   if (recipient.phoneNumber) {
     try {

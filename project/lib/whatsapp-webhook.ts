@@ -3,6 +3,7 @@ import type Anthropic from "@anthropic-ai/sdk"
 import { runAgent } from "@/lib/agent"
 import { getWorkspaceOwnerFor } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
+import { sapaanOf } from "@/lib/sapaan"
 import { normalizePhoneNumber, sendWhatsappMessage } from "@/lib/wahub"
 
 // Reset histori percakapan kalau nomor itu sudah idle lebih dari ini — supaya konteks lama
@@ -177,6 +178,7 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
     ownerId: owner.id,
     actorId: sender.id,
     command,
+    sapaan: sapaanOf(sender),
     assistantInstructions: sender.assistantInstructions,
     history,
     image: message.mediaBase64 ? { base64: message.mediaBase64, mimeType: message.mimetype || "image/jpeg" } : undefined,

@@ -1,6 +1,7 @@
 import { jakartaTodayDateIso } from "@/lib/datetime"
 import { getAllWorkspaceOwners } from "@/lib/current-user"
 import { generateGombalMessage } from "@/lib/gombal-ai"
+import { sapaanOf } from "@/lib/sapaan"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 // Dipanggil tiap tick (lihat instrumentation.ts, tiap 20 menit jam 07:00-22:00 WIB) — bukan jam
@@ -30,14 +31,14 @@ export async function runGombalMessage() {
 
   for (const owner of await getAllWorkspaceOwners()) {
     try {
-      await maybeSendGombalFor(owner.id, owner.phoneNumber, today)
+      await maybeSendGombalFor(owner.id, owner.phoneNumber, sapaanOf(owner), today)
     } catch (error) {
       console.error(`[cron] gombalan gagal untuk ${owner.name}:`, error)
     }
   }
 }
 
-async function maybeSendGombalFor(ownerId: string, phoneNumber: string | null, today: string) {
+async function maybeSendGombalFor(ownerId: string, phoneNumber: string | null, sapaan: string, today: string) {
   if (!phoneNumber) return
 
   let state = stateByOwner.get(ownerId)
@@ -53,7 +54,7 @@ async function maybeSendGombalFor(ownerId: string, phoneNumber: string | null, t
 
   let content: string
   try {
-    content = await generateGombalMessage()
+    content = await generateGombalMessage(sapaan)
   } catch (error) {
     console.error("[cron] Gagal generate gombalan, skip kirim:", error)
     return

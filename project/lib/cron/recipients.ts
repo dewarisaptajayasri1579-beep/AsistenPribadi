@@ -15,11 +15,14 @@ type NotifyFlag = "notifyAgenda" | "notifyDailyReport" | "notifyPriorityAlert" |
  *  tidak perlu menyentuh tiap cron lagi. */
 export async function getOwnerRecipients(ownerIds: string[], flag: NotifyFlag) {
   const unique = [...new Set(ownerIds)]
-  if (unique.length === 0) return new Map<string, { id: string; name: string; phoneNumber: string | null }>()
+  if (unique.length === 0) {
+    return new Map<string, { id: string; name: string; sapaan: string | null; phoneNumber: string | null }>()
+  }
 
   const users = await prisma.user.findMany({
     where: { id: { in: unique }, [flag]: true },
-    select: { id: true, name: true, phoneNumber: true },
+    // sapaan ikut diambil karena template pesannya menyapa penerima dengan nama panggilannya.
+    select: { id: true, name: true, sapaan: true, phoneNumber: true },
   })
 
   return new Map(users.map((u) => [u.id, u]))

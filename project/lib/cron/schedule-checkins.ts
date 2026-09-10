@@ -1,4 +1,5 @@
 import { getOwnerRecipients } from "@/lib/cron/recipients"
+import { sapaanOf } from "@/lib/sapaan"
 import { formatJakartaTime } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { sendPushToUser } from "@/lib/push"
@@ -47,7 +48,7 @@ export async function runScheduleCheckins() {
 
     const time = formatJakartaTime(schedule.startAt)
     const message = [
-      `Mas Ony~ jangan lupa jadwal "${schedule.title}" (mulai ${time} WIB) tadi 👋`,
+      `${sapaanOf(recipient)}~ jangan lupa jadwal "${schedule.title}" (mulai ${time} WIB) tadi 👋`,
       ``,
       `Udah selesai apa belum nih? Balas "sudah" atau "belum" ya mas~`,
     ].join("\n")

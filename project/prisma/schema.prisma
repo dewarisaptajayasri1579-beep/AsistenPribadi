@@ -31,6 +31,9 @@ model User {
   approvedAt             DateTime?    @map("approved_at")
   timezone               String       @default("Asia/Jakarta")
   role                   String       @default("Direktur")
+  /// Cara Naya memanggil orang ini di semua pesan — mis. "Mas Ony", "Pak Budi", "Bu Sari".
+  /// Kosong = pakai nama depannya. Lihat sapaanOf() di lib/sapaan.ts.
+  sapaan                 String?
   assistantInstructions  String?      @map("assistant_instructions")
   notifyAgenda           Boolean      @default(true) @map("notify_agenda")
   notifyDailyReport      Boolean      @default(true) @map("notify_daily_report")
