@@ -1,6 +1,7 @@
 import { isSameJakartaDay } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { sapaanOf } from "@/lib/sapaan"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 import { getStockPrice } from "@/lib/stock-price"
 
@@ -58,7 +59,7 @@ export async function runStockWatchCheck() {
 
     try {
       for (const number of numbers) {
-        await sendWhatsappMessage(number, message)
+        await sendWhatsappMessage(number, message, outgoingSessionId(watch.user))
       }
       await prisma.stockWatch.update({ where: { id: watch.id }, data: { lastAlertAt: now } })
     } catch (error) {

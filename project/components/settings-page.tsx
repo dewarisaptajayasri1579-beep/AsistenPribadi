@@ -8,6 +8,7 @@ import { AppShell } from "@/components/app-shell"
 import { ManageDirectorsCard } from "@/components/manage-directors-card"
 import { PageHeading } from "@/components/page-heading"
 import { PushNotificationCard } from "@/components/push-notification-card"
+import { WhatsappNumberCard } from "@/components/whatsapp-number-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
@@ -34,10 +35,13 @@ interface SettingsValues {
 export function SettingsPage({
   initial,
   admin,
+  isDirector,
 }: {
   initial: SettingsValues
   /** Diisi hanya kalau user yang login adalah admin — panel Kelola Direktur ikut dirender. */
   admin?: { currentUserId: string }
+  /** Pengaturan nomor WhatsApp itu milik workspace, jadi hanya direkturnya yang boleh mengubah. */
+  isDirector?: boolean
 }) {
   const router = useRouter()
   const [values, setValues] = useState(initial)
@@ -258,6 +262,8 @@ export function SettingsPage({
               </FieldGroup>
             </CardContent>
           </Card>
+
+          {isDirector && <WhatsappNumberCard />}
 
           {admin && <ManageDirectorsCard currentUserId={admin.currentUserId} />}
         </div>

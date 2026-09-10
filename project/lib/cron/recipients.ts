@@ -16,13 +16,14 @@ type NotifyFlag = "notifyAgenda" | "notifyDailyReport" | "notifyPriorityAlert" |
 export async function getOwnerRecipients(ownerIds: string[], flag: NotifyFlag) {
   const unique = [...new Set(ownerIds)]
   if (unique.length === 0) {
-    return new Map<string, { id: string; name: string; sapaan: string | null; phoneNumber: string | null }>()
+    return new Map<string, { id: string; name: string; sapaan: string | null; phoneNumber: string | null; wahubSessionId: string | null }>()
   }
 
   const users = await prisma.user.findMany({
     where: { id: { in: unique }, [flag]: true },
-    // sapaan ikut diambil karena template pesannya menyapa penerima dengan nama panggilannya.
-    select: { id: true, name: true, sapaan: true, phoneNumber: true },
+    // sapaan dipakai menyapa penerima; wahubSessionId menentukan pesannya dikirim dari NOMOR
+    // mana (nomor Naya bersama atau nomor sendiri milik direktur ini).
+    select: { id: true, name: true, sapaan: true, phoneNumber: true, wahubSessionId: true },
   })
 
   return new Map(users.map((u) => [u.id, u]))

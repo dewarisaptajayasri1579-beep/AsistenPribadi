@@ -34,6 +34,10 @@ model User {
   /// Cara Naya memanggil orang ini di semua pesan — mis. "Mas Ony", "Pak Budi", "Bu Sari".
   /// Kosong = pakai nama depannya. Lihat sapaanOf() di lib/sapaan.ts.
   sapaan                 String?
+  /// Sesi WAHUB milik direktur ini kalau dia pakai NOMOR WHATSAPP SENDIRI — disimpan sebagai
+  /// "short session id" (WAHUB otomatis memberi prefix client id, lihat lib/wahub.ts).
+  /// NULL = numpang nomor Naya bersama (sesi "default"). Lihat lib/wa-session.ts.
+  wahubSessionId         String?      @unique @map("wahub_session_id")
   assistantInstructions  String?      @map("assistant_instructions")
   notifyAgenda           Boolean      @default(true) @map("notify_agenda")
   notifyDailyReport      Boolean      @default(true) @map("notify_daily_report")

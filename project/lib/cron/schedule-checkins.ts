@@ -3,6 +3,7 @@ import { sapaanOf } from "@/lib/sapaan"
 import { formatJakartaTime } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { sendPushToUser } from "@/lib/push"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 const CHECKIN_DELAY_MINUTES = 30
@@ -55,7 +56,7 @@ export async function runScheduleCheckins() {
 
     if (recipient.phoneNumber) {
       try {
-        await sendWhatsappMessage(recipient.phoneNumber, message)
+        await sendWhatsappMessage(recipient.phoneNumber, message, outgoingSessionId(recipient))
       } catch (error) {
         console.error(`[cron] Gagal kirim checkin WA ke ${recipient.name}:`, error)
       }

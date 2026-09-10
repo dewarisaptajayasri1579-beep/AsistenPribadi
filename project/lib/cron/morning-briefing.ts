@@ -5,6 +5,7 @@ import { sapaanOf } from "@/lib/sapaan"
 import { getDashboardData } from "@/lib/dashboard-queries"
 import { prisma } from "@/lib/prisma"
 import { sendPushToUser } from "@/lib/push"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 // Tugas multi-hari (rentang startDate–dueDate > 1 hari) yang sedang berjalan hari ini —
@@ -96,7 +97,7 @@ async function sendMorningBriefingFor(ownerId: string) {
 
   if (recipient.phoneNumber) {
     try {
-      await sendWhatsappMessage(recipient.phoneNumber, message)
+      await sendWhatsappMessage(recipient.phoneNumber, message, outgoingSessionId(recipient))
     } catch (error) {
       console.error(`[cron] Gagal kirim briefing pagi WA ke ${recipient.name}:`, error)
     }

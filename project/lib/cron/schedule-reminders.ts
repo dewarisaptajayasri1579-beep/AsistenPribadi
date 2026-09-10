@@ -2,6 +2,7 @@ import { getOwnerRecipients } from "@/lib/cron/recipients"
 import { formatJakartaTime } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { sendPushToUser } from "@/lib/push"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 const REMINDER_WINDOW_MINUTES = 15
@@ -56,7 +57,7 @@ export async function runScheduleReminders() {
 
     if (recipient.phoneNumber) {
       try {
-        await sendWhatsappMessage(recipient.phoneNumber, message)
+        await sendWhatsappMessage(recipient.phoneNumber, message, outgoingSessionId(recipient))
       } catch (error) {
         console.error(`[cron] Gagal kirim reminder WA ke ${recipient.name}:`, error)
       }

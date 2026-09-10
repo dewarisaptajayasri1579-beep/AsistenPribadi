@@ -4,6 +4,7 @@ import { runAgent } from "@/lib/agent"
 import { getWorkspaceOwnerFor } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
 import { sapaanOf } from "@/lib/sapaan"
+import { findPrivateSessionOwner, outgoingSessionId, SHARED_SESSION_ID } from "@/lib/wa-session"
 import { normalizePhoneNumber, sendWhatsappMessage } from "@/lib/wahub"
 
 // Reset histori percakapan kalau nomor itu sudah idle lebih dari ini — supaya konteks lama
@@ -128,6 +129,10 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
     return { skipped: "group message not for Naya" }
   }
 
+  // Sesi mana pesan ini masuk: null = nomor Naya bersama (boleh dari direktur manapun),
+  // terisi = nomor pribadi milik satu direktur.
+  const sessionOwner = await findPrivateSessionOwner(payload.sessionId)
+
   const digits = message.senderNumber || message.from.replace(/@.*$/, "")
   const sender = await findRegisteredSender(digits)
 
@@ -143,6 +148,19 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   // manapun akan menulis tugas/transaksi ke workspace direktur pertama di database.
   const owner = await getWorkspaceOwnerFor(sender)
 
+  // Kalau pesan ini masuk lewat sesi PRIBADI seorang direktur (dia pakai nomor WhatsApp sendiri,
+  // bukan nomor Naya bersama), maka sesi itu cuma melayani workspace-nya. Nomor direktur lain yang
+  // kebetulan terdaftar tetap ditolak — kalau tidak, siapapun yang tahu nomor asisten pribadinya
+  // bisa memerintah Naya lewat sana, dan balasannya terkirim dari nomor milik orang lain.
+  if (sessionOwner && sessionOwner.id !== owner.id) {
+    console.log("[whatsapp webhook] skip: pengirim bukan anggota workspace pemilik sesi ini")
+    return { skipped: "sender not in this session's workspace" }
+  }
+
+  // Balas lewat sesi yang SAMA dengan tempat pesannya masuk, supaya balasan Naya selalu datang
+  // dari nomor yang barusan dia chat — bukan tiba-tiba dari nomor lain.
+  const replySession = sessionOwner ? outgoingSessionId(sessionOwner) : SHARED_SESSION_ID
+
   const motivationShortcut = parseMotivationShortcut(message.body.trim())
   if (motivationShortcut) {
     await prisma.motivationMessage.create({
@@ -157,7 +175,7 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
     const confirmation = motivationShortcut.label
       ? `✅ Motivasi baru tersimpan: "${motivationShortcut.label}".`
       : "✅ Motivasi baru tersimpan."
-    await sendWhatsappMessage(digits, confirmation)
+    await sendWhatsappMessage(digits, confirmation, replySession)
 
     return { handled: true, motivationAdded: true }
   }
@@ -190,7 +208,7 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
     create: { userId: sender.id, history: messages as unknown as object },
   })
 
-  await sendWhatsappMessage(digits, reply)
+  await sendWhatsappMessage(digits, reply, replySession)
 
   return { handled: true, user: sender.name }
 }

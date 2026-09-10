@@ -2,6 +2,7 @@ import { jakartaTodayDateIso } from "@/lib/datetime"
 import { getAllWorkspaceOwners } from "@/lib/current-user"
 import { generateGombalMessage } from "@/lib/gombal-ai"
 import { sapaanOf } from "@/lib/sapaan"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 // Dipanggil tiap tick (lihat instrumentation.ts, tiap 20 menit jam 07:00-22:00 WIB) — bukan jam
@@ -9,6 +10,14 @@ import { sendWhatsappMessage } from "@/lib/wahub"
 // (bukan precompute jam-jam acak di awal hari) supaya tahan kalau server restart di tengah hari.
 const TICK_PROBABILITY = 1 / 9 // ~45 tick/hari (jendela 15 jam / 20 menit) * 1/9 ≈ 5x/hari
 const MIN_GAP_MS = 45 * 60 * 1000
+
+interface GombalOwner {
+  id: string
+  name: string
+  sapaan: string | null
+  phoneNumber: string | null
+  wahubSessionId: string | null
+}
 
 interface GombalState {
   date: string
@@ -31,14 +40,15 @@ export async function runGombalMessage() {
 
   for (const owner of await getAllWorkspaceOwners()) {
     try {
-      await maybeSendGombalFor(owner.id, owner.phoneNumber, sapaanOf(owner), today)
+      await maybeSendGombalFor(owner, today)
     } catch (error) {
       console.error(`[cron] gombalan gagal untuk ${owner.name}:`, error)
     }
   }
 }
 
-async function maybeSendGombalFor(ownerId: string, phoneNumber: string | null, sapaan: string, today: string) {
+async function maybeSendGombalFor(owner: GombalOwner, today: string) {
+  const { id: ownerId, phoneNumber } = owner
   if (!phoneNumber) return
 
   let state = stateByOwner.get(ownerId)
@@ -54,14 +64,14 @@ async function maybeSendGombalFor(ownerId: string, phoneNumber: string | null, s
 
   let content: string
   try {
-    content = await generateGombalMessage(sapaan)
+    content = await generateGombalMessage(sapaanOf(owner))
   } catch (error) {
     console.error("[cron] Gagal generate gombalan, skip kirim:", error)
     return
   }
 
   try {
-    await sendWhatsappMessage(phoneNumber, content)
+    await sendWhatsappMessage(phoneNumber, content, outgoingSessionId(owner))
     state.count += 1
     state.lastSentAt = Date.now()
   } catch (error) {

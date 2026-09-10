@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { getApiUser, getWorkspaceOwner } from "@/lib/current-user"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 /** Kirim pesan WA test ke nomor pemilik workspace sendiri — dipakai halaman /wa-test
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    await sendWhatsappMessage(owner.phoneNumber, message.trim())
+    await sendWhatsappMessage(owner.phoneNumber, message.trim(), outgoingSessionId(owner))
     return NextResponse.json({ sent: true })
   } catch (error) {
     console.error("[api/whatsapp/test-send] gagal kirim:", error)

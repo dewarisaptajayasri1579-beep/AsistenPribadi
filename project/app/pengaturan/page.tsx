@@ -9,6 +9,7 @@ export default async function Page() {
   return (
     <SettingsPage
       admin={user.isAdmin ? { currentUserId: user.id } : undefined}
+      isDirector={!user.ownerId}
       initial={{
         name: user.name,
         role: user.role,

@@ -1,6 +1,7 @@
 import { getAllWorkspaceOwners } from "@/lib/current-user"
 import { rephraseMotivationMessage } from "@/lib/motivation-ai"
 import { prisma } from "@/lib/prisma"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 // Menghindari kirim pesan yang sama persis dua kali berturut-turut (per proses server).
@@ -20,14 +21,15 @@ function pickMotivationMessage<T extends { id: string }>(messages: T[], lastId: 
 export async function runMotivationMessage() {
   for (const owner of await getAllWorkspaceOwners()) {
     try {
-      await sendMotivationFor(owner.id, owner.phoneNumber)
+      await sendMotivationFor(owner)
     } catch (error) {
       console.error(`[cron] pesan motivasi gagal untuk ${owner.name}:`, error)
     }
   }
 }
 
-async function sendMotivationFor(ownerId: string, phoneNumber: string | null) {
+async function sendMotivationFor(owner: { id: string; phoneNumber: string | null; wahubSessionId: string | null }) {
+  const { id: ownerId, phoneNumber } = owner
   if (!phoneNumber) return
 
   const messages = await prisma.motivationMessage.findMany({
@@ -49,7 +51,7 @@ async function sendMotivationFor(ownerId: string, phoneNumber: string | null) {
   }
 
   try {
-    await sendWhatsappMessage(phoneNumber, content)
+    await sendWhatsappMessage(phoneNumber, content, outgoingSessionId(owner))
   } catch (error) {
     console.error("[cron] Gagal kirim pesan motivasi WA:", error)
   }

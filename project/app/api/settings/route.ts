@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { getApiUser } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
+import { normalizePhoneNumber } from "@/lib/wahub"
 
 export async function GET() {
   const user = await getApiUser()
@@ -48,6 +49,23 @@ export async function PATCH(request: Request) {
   if (typeof body.notifyStockMarket === "boolean") data.notifyStockMarket = body.notifyStockMarket
   if (typeof body.stockNotifyPhone1 === "string") data.stockNotifyPhone1 = body.stockNotifyPhone1 || null
   if (typeof body.stockNotifyPhone2 === "string") data.stockNotifyPhone2 = body.stockNotifyPhone2 || null
+
+  // Nomor WA adalah SATU-SATUNYA cara Naya tahu pesan masuk ini dari direktur yang mana
+  // (lihat findRegisteredSender di lib/whatsapp-webhook.ts). Kalau dua akun memakai nomor yang
+  // sama, pencarian itu ambigu dan pesan bisa masuk ke workspace orang lain — jadi ditolak di sini.
+  if (typeof data.phoneNumber === "string") {
+    const normalized = normalizePhoneNumber(data.phoneNumber)
+    const others = await prisma.user.findMany({
+      where: { id: { not: user.id }, phoneNumber: { not: null } },
+      select: { phoneNumber: true },
+    })
+    if (others.some((o) => normalizePhoneNumber(o.phoneNumber!) === normalized)) {
+      return NextResponse.json(
+        { error: "Nomor WhatsApp ini sudah dipakai akun lain. Tiap orang harus punya nomor sendiri." },
+        { status: 409 }
+      )
+    }
+  }
 
   try {
     const updated = await prisma.user.update({ where: { id: user.id }, data })

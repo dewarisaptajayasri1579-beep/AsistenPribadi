@@ -3,6 +3,7 @@ import { getOwnerRecipients } from "@/lib/cron/recipients"
 import { sapaanOf } from "@/lib/sapaan"
 import { getDailyReportData } from "@/lib/report-queries"
 import { sendPushToUser } from "@/lib/push"
+import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
 export async function runEveningEvaluation() {
@@ -55,7 +56,7 @@ async function sendEveningEvaluationFor(ownerId: string) {
 
   if (recipient.phoneNumber) {
     try {
-      await sendWhatsappMessage(recipient.phoneNumber, message)
+      await sendWhatsappMessage(recipient.phoneNumber, message, outgoingSessionId(recipient))
     } catch (error) {
       console.error(`[cron] Gagal kirim evaluasi malam WA ke ${recipient.name}:`, error)
     }

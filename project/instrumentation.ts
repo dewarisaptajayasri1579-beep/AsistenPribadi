@@ -19,7 +19,13 @@ export async function register() {
   // Daftarkan ulang webhook WAHUB pakai env var yang aktif sekarang, tiap kali server start —
   // supaya kalau WAHUB_API_KEY/WAHUB_WEBHOOK_SECRET/APP_BASE_URL berubah (redeploy/rotate key),
   // webhook otomatis ke-sync ulang tanpa perlu didaftarkan manual lewat API.
-  registerWahubWebhook().catch((e) => console.error("[wahub] registrasi webhook saat startup gagal:", e))
+  // Sesi bersama + tiap direktur yang pakai nomor WhatsApp sendiri.
+  const { prisma } = await import("@/lib/prisma")
+  const { SHARED_SESSION_ID } = await import("@/lib/wa-session")
+  prisma.user
+    .findMany({ where: { wahubSessionId: { not: null } }, select: { wahubSessionId: true } })
+    .then((rows) => registerWahubWebhook([SHARED_SESSION_ID, ...rows.map((r) => r.wahubSessionId!)]))
+    .catch((e) => console.error("[wahub] registrasi webhook saat startup gagal:", e))
 
   // Tahap 5: cek jadwal yang mendekati waktu setiap 5 menit, kirim reminder WhatsApp.
   cron.schedule(
