@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk"
 
 import { runAgent } from "@/lib/agent"
-import { getWorkspaceOwner } from "@/lib/current-user"
+import { getWorkspaceOwnerFor } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
 import { normalizePhoneNumber, sendWhatsappMessage } from "@/lib/wahub"
 
@@ -47,17 +47,33 @@ interface WahubWebhookPayload {
   message?: WahubIncomingMessage
 }
 
-/** Cuma nomor yang cocok dengan User.phoneNumber (sudah dinormalisasi) yang bisa dibalas AI. */
+/** Cuma nomor yang cocok dengan User.phoneNumber (sudah dinormalisasi) DAN akunnya sudah disetujui
+ *  admin yang bisa dibalas AI. Akun yang masih menunggu persetujuan sengaja diperlakukan sama
+ *  seperti nomor tak dikenal: didiamkan — supaya orang yang asal mendaftar tidak bisa memakai
+ *  Naya (dan menghabiskan kuota Claude) sebelum disetujui. */
 async function findRegisteredSender(rawNumber: string) {
   const normalized = normalizePhoneNumber(rawNumber)
 
-  const candidates = await prisma.user.findMany({ where: { phoneNumber: { not: null } } })
+  const candidates = await prisma.user.findMany({
+    where: { phoneNumber: { not: null }, approvedAt: { not: null } },
+  })
   return candidates.find((u) => normalizePhoneNumber(u.phoneNumber!) === normalized)
 }
 
 export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   const message = payload.message
-  console.log("[whatsapp webhook] payload masuk:", JSON.stringify(payload))
+  // Sengaja TIDAK menulis payload mentah: isinya teks chat utuh (dan base64 foto). Dengan lebih
+  // dari satu direktur, log server jadi tempat menumpuk isi percakapan orang lain — cukup catat
+  // metadata yang dibutuhkan untuk menelusuri masalah.
+  console.log("[whatsapp webhook] pesan masuk:", {
+    sessionId: payload.sessionId,
+    from: message?.from,
+    chatId: message?.chatId,
+    isGroup: message?.isGroup,
+    to: message?.to,
+    bodyLength: message?.body?.length ?? 0,
+    hasMedia: !!message?.mediaBase64,
+  })
 
   if (!message?.from) {
     console.log("[whatsapp webhook] skip: no message")
@@ -122,7 +138,9 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
 
   console.log("[whatsapp webhook] diproses untuk user:", sender.name, "command:", message.body.trim())
 
-  const owner = await getWorkspaceOwner()
+  // Owner di-resolve dari PENGIRIMNYA, bukan direktur global — kalau tidak, pesan WA direktur
+  // manapun akan menulis tugas/transaksi ke workspace direktur pertama di database.
+  const owner = await getWorkspaceOwnerFor(sender)
 
   const motivationShortcut = parseMotivationShortcut(message.body.trim())
   if (motivationShortcut) {

@@ -16,6 +16,19 @@ model User {
   passwordHash           String?      @map("password_hash")
   phoneNumber            String?      @map("phone_number")
   isOwner                Boolean      @default(false) @map("is_owner")
+  /// Direktur pemilik workspace tempat user ini bekerja. NULL = user ini direktur/pemilik
+  /// workspace-nya sendiri. Diisi untuk anggota tim (mis. sekretaris) yang mengelola data
+  /// direkturnya. Semua data (tugas/jadwal/keuangan/dst) selalu disimpan di bawah id DIREKTUR,
+  /// bukan id anggota tim — lihat getWorkspaceOwner di lib/current-user.ts.
+  ownerId                String?      @map("owner_id")
+  owner                  User?        @relation("WorkspaceMembers", fields: [ownerId], references: [id])
+  members                User[]       @relation("WorkspaceMembers")
+  /// Boleh mengelola AKUN direktur lain (menyetujui pendaftaran, menonaktifkan). Sengaja tidak
+  /// memberi akses ke ISI data workspace lain — admin cuma mengurus akunnya, bukan datanya.
+  isAdmin                Boolean      @default(false) @map("is_admin")
+  /// Kapan pendaftarannya disetujui admin. NULL = masih menunggu persetujuan: belum boleh melihat
+  /// data apapun, dan cron/Naya tidak boleh mengirim WA ke nomornya.
+  approvedAt             DateTime?    @map("approved_at")
   timezone               String       @default("Asia/Jakarta")
   role                   String       @default("Direktur")
   assistantInstructions  String?      @map("assistant_instructions")
