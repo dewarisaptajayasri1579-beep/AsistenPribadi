@@ -46,7 +46,12 @@ function systemPrompt(sapaan: string, assistantInstructions?: string | null): An
   // tiap direktur punya prefix berbeda dan cache-nya pecah. Taruh di blok kedua yang tidak
   // di-cache — isinya cuma satu baris, jadi murah.
   const blocks: Anthropic.TextBlockParam[] = [
-    { type: "text", text: STATIC_SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+    // TTL 1 jam, bukan 5 menit (default). Chat WhatsApp datang bergerombol lalu hilang berjam-jam:
+    // dengan TTL 5 menit hampir tiap pesan jatuh "dingin" dan harus menulis ulang ~7.800 token
+    // prefix. Menulis cache 1 jam memang 2x tarif input (vs 1,25x untuk 5 menit), tapi impasnya
+    // cuma 2 pesan dalam sejam — di bawah itu lebih mahal, di atasnya jauh lebih murah karena
+    // bacanya tetap 0,1x. Kalau pola pakainya berubah jadi satu-pesan-per-jam, kembalikan ke 5m.
+    { type: "text", text: STATIC_SYSTEM_PROMPT, cache_control: { type: "ephemeral", ttl: "1h" } },
     { type: "text", text: `Sapaan untuk lawan bicaramu: "${sapaan}". Pakai persis itu.` },
   ]
   if (assistantInstructions?.trim()) {

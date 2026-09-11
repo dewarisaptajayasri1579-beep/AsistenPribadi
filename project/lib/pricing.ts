@@ -4,7 +4,11 @@ const PRICING: Record<string, { input: number; output: number }> = {
   "claude-sonnet-5": { input: 2.0, output: 10.0 },
 }
 
-const CACHE_WRITE_MULTIPLIER = 1.25 // TTL 5 menit (default)
+// Tarif tulis cache tergantung TTL-nya: 1,25x untuk 5 menit (default Anthropic) dan 2x untuk
+// 1 jam. Agent kita memakai TTL 1 jam (lihat systemPrompt di lib/agent.ts), jadi angka di sini
+// HARUS 2 — kalau tertinggal di 1,25 halaman Biaya AI melaporkan biaya lebih murah dari kenyataan.
+// Ubah bersamaan kalau TTL di agent.ts diubah.
+const CACHE_WRITE_MULTIPLIER = 2.0 // TTL 1 jam
 const CACHE_READ_MULTIPLIER = 0.1
 
 export interface UsageTotals {
