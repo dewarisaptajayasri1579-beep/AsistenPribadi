@@ -1,10 +1,10 @@
-import { CircleDollarSign, ExternalLink, MessagesSquare, Receipt, Zap } from "lucide-react"
+import { CircleDollarSign, ExternalLink, MessagesSquare, Receipt, Users, Zap } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { PageHeading } from "@/components/page-heading"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import type { AiUsageOverview } from "@/lib/usage-queries"
+import type { AiUsageOverview, AiUsagePerDirector } from "@/lib/usage-queries"
 import { formatIdr, modelLabel } from "@/lib/pricing"
 
 function formatTime(date: Date) {
@@ -21,7 +21,15 @@ function truncate(text: string, max = 50) {
   return text.length > max ? `${text.slice(0, max)}…` : text
 }
 
-export function AiUsagePage({ overview }: { overview: AiUsageOverview }) {
+export function AiUsagePage({
+  overview,
+  perDirector,
+}: {
+  overview: AiUsageOverview
+  /** Hanya diisi untuk admin: rekap angka tiap direktur supaya bisa ditagihkan terpisah.
+   *  Sengaja tanpa isi perintah/percakapan — admin mengurus tagihan, bukan membaca chat. */
+  perDirector?: AiUsagePerDirector
+}) {
   const { logs, today, allTime } = overview
   const avgCostUsd = allTime.count > 0 ? allTime.totalCostUsd / allTime.count : 0
 
@@ -51,6 +59,47 @@ export function AiUsagePage({ overview }: { overview: AiUsageOverview }) {
             </Button>
           }
         />
+
+        {perDirector && perDirector.length > 0 && (
+          <Card className="glass-card border-0 ring-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="size-5 text-primary" aria-hidden="true" />
+                Biaya per Direktur
+              </CardTitle>
+              <CardDescription>
+                Pemakaian tiap direktur dihitung terpisah (termasuk pemakaian anggota timnya).
+                Angka saja — isi percakapan tiap direktur tidak ditampilkan di sini.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[34rem] text-sm">
+                  <thead>
+                    <tr className="border-b border-border/60 text-left text-muted-foreground">
+                      <th className="py-2 pr-4 font-medium">Direktur</th>
+                      <th className="py-2 pr-4 text-right font-medium">Chat hari ini</th>
+                      <th className="py-2 pr-4 text-right font-medium">Biaya hari ini</th>
+                      <th className="py-2 pr-4 text-right font-medium">Total chat</th>
+                      <th className="py-2 text-right font-medium">Biaya total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perDirector.map((d) => (
+                      <tr key={d.name} className="border-b border-border/30 last:border-0">
+                        <td className="py-2 pr-4 font-medium">{d.name}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums">{d.todayCount}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums">{formatIdr(d.todayCostUsd)}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums">{d.count}</td>
+                        <td className="py-2 text-right font-medium tabular-nums">{formatIdr(d.costUsd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <section aria-label="Ringkasan biaya" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {stats.map(({ label, value, detail, icon: Icon }) => (
