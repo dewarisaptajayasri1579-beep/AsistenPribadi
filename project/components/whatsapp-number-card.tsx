@@ -13,11 +13,13 @@ interface SessionInfo {
   qr?: string | null
 }
 
+// Nilai yang benar-benar dipakai WAHUB — lihat src/sessionManager.js di backend-wahub.
+// (Jangan menebak: "STARTING" tidak pernah ada di sana.)
 const STATUS_LABEL: Record<string, string> = {
   READY: "Tersambung",
   QR_READY: "Menunggu QR di-scan",
-  STARTING: "Menyiapkan…",
-  DISCONNECTED: "Terputus",
+  INITIALIZING: "Menyiapkan koneksi…",
+  DISCONNECTED: "Terputus, mencoba menyambung ulang…",
   FAILED: "Gagal tersambung",
   UNKNOWN: "Belum diketahui",
 }
@@ -38,14 +40,14 @@ export function WhatsappNumberCard() {
     load()
   }, [load])
 
-  // Selama menunggu QR di-scan, statusnya berubah di sisi WAHUB tanpa memberi tahu kita — dan QR
-  // WhatsApp sendiri kedaluwarsa dalam hitungan puluhan detik. Jadi selama fase itu saja kita
-  // polling; begitu tersambung, polling berhenti.
+  // Status berubah di sisi WAHUB tanpa memberi tahu kita, dan QR WhatsApp kedaluwarsa dalam
+  // hitungan puluhan detik — jadi kita polling selama BELUM tersambung, apapun statusnya.
+  // Sebelumnya kondisi ini cuma mencakup QR_READY, sehingga halaman yang kebetulan dibuka saat
+  // status masih INITIALIZING berhenti memeriksa selamanya dan QR-nya tidak pernah muncul.
   useEffect(() => {
-    if (info?.mode !== "own") return
-    if (info.status !== "QR_READY" && info.status !== "STARTING") return
+    if (info?.mode !== "own" || info.status === "READY") return
 
-    timer.current = setTimeout(load, 5000)
+    timer.current = setTimeout(load, 4000)
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
@@ -127,12 +129,14 @@ export function WhatsappNumberCard() {
               </div>
             )}
 
-            {info.status === "FAILED" || info.status === "DISCONNECTED" ? (
+            {/* Selama belum tersambung & QR belum keluar, sediakan jalan keluar manual — sesi
+                WAHUB kadang nyangkut di INITIALIZING/DISCONNECTED dan tidak pulih sendiri. */}
+            {info.status !== "READY" && info.status !== "QR_READY" && (
               <Button type="button" className="self-start rounded-xl" disabled={busy} onClick={() => setMode("own")}>
                 <RefreshCw data-icon="inline-start" />
-                Sambungkan ulang
+                Coba sambungkan lagi
               </Button>
-            ) : null}
+            )}
 
             <Button type="button" variant="outline" className="self-start rounded-xl" disabled={busy} onClick={() => setMode("shared")}>
               Kembali numpang nomor bersama
