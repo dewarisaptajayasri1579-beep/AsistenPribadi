@@ -124,6 +124,11 @@ model Schedule {
   location     String?
   notes        String?
   status       String             @default("confirmed")
+  /// Berapa menit sebelum acara pengingat WA dikirim. Default 15. Diisi kalau pengguna minta
+  /// khusus ("ingatkan 3 jam sebelumnya" = 180, "sehari sebelumnya" = 1440). Sebelum kolom ini
+  /// ada, permintaan seperti itu tidak bisa disimpan sama sekali — AI terpaksa mengarang
+  /// jadwal tambahan berjudul "REMINDER: ..." atau malah menggeser jam acaranya.
+  remindBeforeMinutes Int          @default(15) @map("remind_before_minutes")
   remindedAt   DateTime?          @map("reminded_at")
   checkinAt    DateTime?          @map("checkin_at")
   recurrenceId String?            @map("recurrence_id")

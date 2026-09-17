@@ -5,20 +5,43 @@ import { sendPushToUser } from "@/lib/push"
 import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
 
-const REMINDER_WINDOW_MINUTES = 15
+// Batas atas jendela pencarian saja — jeda pengingat sebenarnya dibaca per jadwal dari
+// remindBeforeMinutes. 30 hari menampung permintaan terjauh yang masuk akal ("seminggu sebelumnya").
+const MAX_LEAD_MINUTES = 30 * 24 * 60
 
-/** Cari jadwal yang mulai dalam N menit ke depan & belum diingatkan, lalu kirim WA. */
+/** Kalimat pembuka pengingat harus ikut jeda yang diminta pengguna — "sebentar lagi" jadi
+ *  membingungkan kalau pengingatnya dipasang sehari sebelumnya. */
+function leadLabel(startAt: Date, now: Date) {
+  const menit = Math.round((startAt.getTime() - now.getTime()) / 60000)
+  if (menit >= 1440) {
+    const hari = Math.round(menit / 1440)
+    return hari === 1 ? "besok" : `${hari} hari lagi`
+  }
+  if (menit >= 60) return `${Math.round(menit / 60)} jam lagi`
+  if (menit >= 2) return `${menit} menit lagi`
+  return "sebentar lagi"
+}
+
+/** Cari jadwal yang sudah masuk jendela pengingatnya MASING-MASING & belum diingatkan, lalu kirim WA.
+ *  Dulu jendelanya satu konstanta 15 menit untuk semua jadwal, sehingga permintaan seperti
+ *  "ingatkan 3 jam sebelumnya" tidak mungkin dipenuhi — lihat kolom remindBeforeMinutes. */
 export async function runScheduleReminders() {
   const now = new Date()
-  const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_MINUTES * 60 * 1000)
 
-  const upcoming = await prisma.schedule.findMany({
+  // Perbandingan "startAt - remindBeforeMinutes <= now" membandingkan kolom dengan kolom, yang
+  // tidak bisa ditulis di filter Prisma biasa. Jadi ambil kandidat dengan batas terluas dulu,
+  // lalu saring di sini — jumlahnya kecil (hanya jadwal mendatang yang belum diingatkan).
+  const candidates = await prisma.schedule.findMany({
     where: {
       status: { not: "cancelled" },
       remindedAt: null,
-      startAt: { gte: now, lte: windowEnd },
+      startAt: { gte: now, lte: new Date(now.getTime() + MAX_LEAD_MINUTES * 60 * 1000) },
     },
   })
+
+  const upcoming = candidates.filter(
+    (s) => s.startAt.getTime() - s.remindBeforeMinutes * 60 * 1000 <= now.getTime()
+  )
 
   if (upcoming.length === 0) return
 
@@ -46,7 +69,7 @@ export async function runScheduleReminders() {
 
     const time = formatJakartaTime(schedule.startAt)
     const message = [
-      `⏰ Woy, sebentar lagi ada agenda nih~`,
+      `⏰ Woy, ${leadLabel(schedule.startAt, now)} ada agenda nih~`,
       ``,
       `${schedule.title}`,
       `Jam ${time} WIB${schedule.location ? ` di ${schedule.location}` : ""}`,

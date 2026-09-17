@@ -53,7 +53,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "create_schedule",
     description:
-      "Membuat jadwal/meeting baru. Sudah otomatis memeriksa bentrok secara internal — jika bentrok, TIDAK membuat jadwal dan hasilnya berisi hasConflict:true beserta daftar konfliknya. Tidak perlu panggil check_schedule_conflict sebelum ini.",
+      "Membuat jadwal/meeting baru. Sudah otomatis memeriksa bentrok secara internal — jika bentrok, TIDAK membuat jadwal dan hasilnya berisi hasConflict:true beserta daftar konfliknya. Tidak perlu panggil check_schedule_conflict sebelum ini. Kalau pengguna minta diingatkan lebih awal dari biasanya (mis. \"ingatkan 3 jam sebelumnya\", \"kabari sehari sebelum\"), isi remindBeforeMinutes — JANGAN membuat jadwal tambahan berjudul \"REMINDER: ...\" dan JANGAN menggeser jam acaranya, karena dua-duanya merusak agenda pengguna.",
     input_schema: {
       type: "object",
       properties: {
@@ -62,6 +62,11 @@ export const toolDefinitions: Anthropic.Tool[] = [
         endAt: { type: "string", description: "Waktu selesai, ISO 8601 (opsional, default 1 jam setelah mulai)" },
         location: { type: "string" },
         notes: { type: "string" },
+        remindBeforeMinutes: {
+          type: "number",
+          description:
+            "Berapa MENIT sebelum acara pengingat WhatsApp dikirim. Default 15 kalau tidak disebut. Konversi dari ucapan pengguna: '3 jam sebelumnya' = 180, 'setengah jam' = 30, 'sehari sebelumnya' = 1440, 'seminggu' = 10080.",
+        },
       },
       required: ["title", "startAt"],
     },
@@ -384,6 +389,13 @@ async function createSchedule(ctx: ToolContext, input: any) {
       endAt: input.endAt ? new Date(input.endAt) : resolveEnd(input.startAt, input.endAt),
       location: input.location,
       notes: input.notes,
+      // Angka tak masuk akal (negatif, atau lebih dari 30 hari) diabaikan — pakai default 15.
+      remindBeforeMinutes:
+        typeof input.remindBeforeMinutes === "number" &&
+        input.remindBeforeMinutes > 0 &&
+        input.remindBeforeMinutes <= 43200
+          ? Math.round(input.remindBeforeMinutes)
+          : undefined,
     },
   })
   // startAt/endAt di objek schedule tersimpan UTC (offset Z) — field label ini sudah dikonversi
@@ -393,6 +405,7 @@ async function createSchedule(ctx: ToolContext, input: any) {
     schedule,
     startAtLabel: `${formatJakartaTime(schedule.startAt)} WIB`,
     endAtLabel: `${formatJakartaTime(schedule.endAt!)} WIB`,
+    remindBeforeMinutes: schedule.remindBeforeMinutes,
   }
 }
 
@@ -592,7 +605,30 @@ async function completeSchedule(ctx: ToolContext, input: any) {
     where: { id: input.id, userId: ctx.userId },
     data: { status: "done" },
   })
-  return schedule
+
+  // Jaring pengaman untuk jadwal KEMBAR. Pernah terjadi: satu acara tersimpan dua kali (judul
+  // sama, jam beda) karena koreksi jadwal membuat baris baru tanpa menutup yang lama. Saat
+  // pengguna bilang "sudah selesai", cuma satu yang tertutup — sisanya menggantung selamanya di
+  // get_pending_schedule_checkins, membuat AI menanyakan acara yang sudah beres berhari-hari
+  // kemudian, dan pengguna mengira dirinya yang salah.
+  //
+  // Sengaja sempit supaya tidak menutup acara yang memang beda: judul harus SAMA PERSIS, di HARI
+  // yang sama, dan bukan bagian dari jadwal rutin (recurrenceId null) — dua wiridan harian
+  // berjudul sama di hari berbeda tidak boleh saling menutup.
+  const { start, end } = jakartaTodayRange(schedule.startAt)
+  const kembar = await prisma.schedule.updateMany({
+    where: {
+      userId: ctx.userId,
+      id: { not: schedule.id },
+      title: schedule.title,
+      recurrenceId: null,
+      status: { notIn: ["done", "cancelled"] },
+      startAt: { gte: start, lt: end },
+    },
+    data: { status: "done" },
+  })
+
+  return { ...schedule, jadwalKembarIkutDitutup: kembar.count }
 }
 
 async function generateDailyBrief(ctx: ToolContext) {
