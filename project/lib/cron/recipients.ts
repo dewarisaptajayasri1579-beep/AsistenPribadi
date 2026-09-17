@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
 
-type NotifyFlag = "notifyAgenda" | "notifyDailyReport" | "notifyPriorityAlert" | "notifyMorningBriefing"
+type NotifyFlag = "notifyAgenda" | "notifyDailyReport" | "notifyMorningBriefing"
 
 /** Siapa yang boleh dikirimi notifikasi tentang data milik sekumpulan owner tertentu.
  *

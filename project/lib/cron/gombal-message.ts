@@ -17,6 +17,7 @@ interface GombalOwner {
   sapaan: string | null
   phoneNumber: string | null
   wahubSessionId: string | null
+  notifyGombal: boolean
 }
 
 interface GombalState {
@@ -50,6 +51,9 @@ export async function runGombalMessage() {
 async function maybeSendGombalFor(owner: GombalOwner, today: string) {
   const { id: ownerId, phoneNumber } = owner
   if (!phoneNumber) return
+  // Default kolomnya MATI. Dulu satu-satunya syarat cuma punya nomor WA, jadi tiap direktur baru
+  // langsung menerima 4-6 gombalan/hari tanpa pernah ditawari dan tanpa cara mematikannya.
+  if (!owner.notifyGombal) return
 
   let state = stateByOwner.get(ownerId)
   if (!state || state.date !== today) {

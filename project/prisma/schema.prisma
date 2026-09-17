@@ -41,7 +41,14 @@ model User {
   assistantInstructions  String?      @map("assistant_instructions")
   notifyAgenda           Boolean      @default(true) @map("notify_agenda")
   notifyDailyReport      Boolean      @default(true) @map("notify_daily_report")
+  /// TIDAK DIPAKAI. Switch-nya pernah ada di Pengaturan tapi tidak ada satupun cron yang
+  /// membacanya — nilainya disimpan lalu diabaikan. UI-nya sudah dicabut; kolomnya sengaja
+  /// dibiarkan supaya container lama tidak error saat rolling deploy, dan bisa di-drop nanti.
   notifyPriorityAlert    Boolean      @default(true) @map("notify_priority_alert")
+  /// Gombalan acak dari Naya. Default MATI: ini sangat personal, dan direktur baru tidak boleh
+  /// otomatis kebagian tanpa memilih. Penyumbang volume WA terbesar (4-6 pesan/hari), jadi
+  /// mematikannya juga menurunkan risiko nomor kena blokir.
+  notifyGombal           Boolean      @default(false) @map("notify_gombal")
   notifyMorningBriefing  Boolean      @default(true) @map("notify_morning_briefing")
   notifyStockMarket      Boolean      @default(false) @map("notify_stock_market")
   stockNotifyPhone1      String?      @map("stock_notify_phone_1")

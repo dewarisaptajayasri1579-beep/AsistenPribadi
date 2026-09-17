@@ -25,7 +25,7 @@ interface SettingsValues {
   assistantInstructions: string
   notifyAgenda: boolean
   notifyDailyReport: boolean
-  notifyPriorityAlert: boolean
+  notifyGombal: boolean
   notifyMorningBriefing: boolean
   notifyStockMarket: boolean
   stockNotifyPhone1: string
@@ -161,7 +161,7 @@ export function SettingsPage({
                 <Field orientation="horizontal" className="rounded-xl border border-border bg-secondary/25 p-3">
                   <FieldContent>
                     <FieldLabel htmlFor="agenda-notification">Pengingat agenda</FieldLabel>
-                    <FieldDescription>Kirim WhatsApp 15 menit sebelum agenda dimulai.</FieldDescription>
+                    <FieldDescription>Kirim WhatsApp sebelum agenda dimulai — 15 menit, atau sesuai jeda yang kamu minta saat membuat jadwal.</FieldDescription>
                   </FieldContent>
                   <Switch id="agenda-notification" checked={values.notifyAgenda} onCheckedChange={(v) => update("notifyAgenda", v)} />
                 </Field>
@@ -174,10 +174,10 @@ export function SettingsPage({
                 </Field>
                 <Field orientation="horizontal" className="rounded-xl border border-border bg-secondary/25 p-3">
                   <FieldContent>
-                    <FieldLabel htmlFor="priority-alert">Tugas prioritas tinggi</FieldLabel>
-                    <FieldDescription>Berikan notifikasi untuk tugas mendesak.</FieldDescription>
+                    <FieldLabel htmlFor="gombal">Gombalan dari Naya</FieldLabel>
+                    <FieldDescription>Pujian & gombalan receh di jam acak, 4-6x sehari. Murni hiburan.</FieldDescription>
                   </FieldContent>
-                  <Switch id="priority-alert" checked={values.notifyPriorityAlert} onCheckedChange={(v) => update("notifyPriorityAlert", v)} />
+                  <Switch id="gombal" checked={values.notifyGombal} onCheckedChange={(v) => update("notifyGombal", v)} />
                 </Field>
               </FieldGroup>
             </CardContent>

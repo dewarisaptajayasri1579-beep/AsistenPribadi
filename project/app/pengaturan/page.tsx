@@ -19,7 +19,7 @@ export default async function Page() {
         assistantInstructions: user.assistantInstructions ?? "",
         notifyAgenda: user.notifyAgenda,
         notifyDailyReport: user.notifyDailyReport,
-        notifyPriorityAlert: user.notifyPriorityAlert,
+        notifyGombal: user.notifyGombal,
         notifyMorningBriefing: user.notifyMorningBriefing,
         notifyStockMarket: user.notifyStockMarket,
         stockNotifyPhone1: user.stockNotifyPhone1 ?? "",

@@ -17,7 +17,7 @@ export async function GET() {
     assistantInstructions: user.assistantInstructions ?? "",
     notifyAgenda: user.notifyAgenda,
     notifyDailyReport: user.notifyDailyReport,
-    notifyPriorityAlert: user.notifyPriorityAlert,
+    notifyGombal: user.notifyGombal,
     notifyMorningBriefing: user.notifyMorningBriefing,
     notifyStockMarket: user.notifyStockMarket,
     stockNotifyPhone1: user.stockNotifyPhone1 ?? "",
@@ -44,7 +44,7 @@ export async function PATCH(request: Request) {
   if (typeof body.assistantInstructions === "string") data.assistantInstructions = body.assistantInstructions
   if (typeof body.notifyAgenda === "boolean") data.notifyAgenda = body.notifyAgenda
   if (typeof body.notifyDailyReport === "boolean") data.notifyDailyReport = body.notifyDailyReport
-  if (typeof body.notifyPriorityAlert === "boolean") data.notifyPriorityAlert = body.notifyPriorityAlert
+  if (typeof body.notifyGombal === "boolean") data.notifyGombal = body.notifyGombal
   if (typeof body.notifyMorningBriefing === "boolean") data.notifyMorningBriefing = body.notifyMorningBriefing
   if (typeof body.notifyStockMarket === "boolean") data.notifyStockMarket = body.notifyStockMarket
   if (typeof body.stockNotifyPhone1 === "string") data.stockNotifyPhone1 = body.stockNotifyPhone1 || null

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { RefreshCw, Smartphone } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -27,31 +27,79 @@ const STATUS_LABEL: Record<string, string> = {
 export function WhatsappNumberCard() {
   const [info, setInfo] = useState<SessionInfo | null>(null)
   const [busy, setBusy] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState("")
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  /** Ambil status terbaru. Sengaja TIDAK melempar error: pemanggilnya adalah loop polling, dan
+   *  satu blip jaringan tidak boleh mematikan loop itu. Mengembalikan info terbaru supaya si
+   *  loop bisa menentukan jeda berikutnya tanpa menunggu state ter-render. */
   const load = useCallback(async () => {
-    const res = await fetch("/api/whatsapp/session")
-    if (!res.ok) return
-    setInfo(await res.json())
+    try {
+      const res = await fetch("/api/whatsapp/session", { cache: "no-store" })
+      if (!res.ok) return null
+      const data = (await res.json()) as SessionInfo
+      setInfo(data)
+      return data
+    } catch {
+      return null
+    }
   }, [])
 
+  // WAHUB tidak pernah memberi tahu kita saat statusnya berubah — satu-satunya cara tahu adalah
+  // bertanya terus. Dua hal yang wajib dijaga di sini:
+  //   1. Polling TIDAK boleh berhenti saat READY. Sesi bisa putus sendiri (HP mati, WhatsApp
+  //      melepas perangkat tertaut), dan kartu yang berhenti memeriksa akan memajang "Tersambung"
+  //      yang bohong sampai halamannya di-reload manual.
+  //   2. Jadwal berikutnya dipasang oleh loop ini sendiri, bukan oleh perubahan `info`. Versi
+  //      sebelumnya bergantung pada `info` berubah; begitu satu fetch gagal, `info` tetap sama,
+  //      efeknya tidak jalan lagi, dan polling mati permanen.
   useEffect(() => {
-    load()
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const schedule = (data: SessionInfo | null) => {
+      if (cancelled) return
+      // Belum tersambung: QR WhatsApp kedaluwarsa dalam hitungan puluhan detik, jadi periksa
+      // cepat. Sudah tersambung: cukup pelan, ini hanya untuk menangkap sesi yang putus.
+      const delay = data?.mode === "own" && data.status !== "READY" ? 4000 : 20000
+      timer = setTimeout(tick, delay)
+    }
+
+    const tick = async () => {
+      // Tab di background: browser meng-throttle timer sampai ~1 menit sekali, dan requestnya pun
+      // mubazir karena tidak ada yang melihat. Biarkan 'visibilitychange' di bawah yang menyusul.
+      if (document.hidden) return schedule(null)
+      schedule(await load())
+    }
+
+    tick()
+
+    // Alur normalnya: buka halaman ini → pindah ke HP untuk scan QR → balik ke tab. Tanpa ini,
+    // yang dilihat saat balik adalah status basi, dan satu-satunya jalan adalah refresh manual.
+    const onWake = () => {
+      if (document.hidden) return
+      if (timer) clearTimeout(timer)
+      tick()
+    }
+    document.addEventListener("visibilitychange", onWake)
+    window.addEventListener("focus", onWake)
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+      document.removeEventListener("visibilitychange", onWake)
+      window.removeEventListener("focus", onWake)
+    }
   }, [load])
 
-  // Status berubah di sisi WAHUB tanpa memberi tahu kita, dan QR WhatsApp kedaluwarsa dalam
-  // hitungan puluhan detik — jadi kita polling selama BELUM tersambung, apapun statusnya.
-  // Sebelumnya kondisi ini cuma mencakup QR_READY, sehingga halaman yang kebetulan dibuka saat
-  // status masih INITIALIZING berhenti memeriksa selamanya dan QR-nya tidak pernah muncul.
-  useEffect(() => {
-    if (info?.mode !== "own" || info.status === "READY") return
-
-    timer.current = setTimeout(load, 4000)
-    return () => {
-      if (timer.current) clearTimeout(timer.current)
+  async function refreshNow() {
+    setRefreshing(true)
+    try {
+      await load()
+    } finally {
+      setRefreshing(false)
     }
-  }, [info, load])
+  }
 
   async function setMode(mode: "shared" | "own") {
     setBusy(true)
@@ -113,9 +161,20 @@ export function WhatsappNumberCard() {
 
         {info?.mode === "own" && (
           <>
-            <p className="text-sm">
-              Status: <strong>{STATUS_LABEL[info.status ?? "UNKNOWN"] ?? info.status}</strong>
-              {info.phoneNumber && <span className="text-muted-foreground"> · {info.phoneNumber}</span>}
+            <p className="flex flex-wrap items-center gap-2 text-sm">
+              <span>
+                Status: <strong>{STATUS_LABEL[info.status ?? "UNKNOWN"] ?? info.status}</strong>
+                {info.phoneNumber && <span className="text-muted-foreground"> · {info.phoneNumber}</span>}
+              </span>
+              <button
+                type="button"
+                onClick={refreshNow}
+                disabled={refreshing}
+                className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary/40 hover:text-foreground disabled:opacity-60"
+              >
+                <RefreshCw className={`size-3 ${refreshing ? "animate-spin" : ""}`} aria-hidden="true" />
+                {refreshing ? "Memeriksa…" : "Perbarui"}
+              </button>
             </p>
 
             {info.qr && (
