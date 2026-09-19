@@ -3,6 +3,14 @@ import type Anthropic from "@anthropic-ai/sdk"
 import { runAgent } from "@/lib/agent"
 import { getWorkspaceOwnerFor } from "@/lib/current-user"
 import { prisma } from "@/lib/prisma"
+import {
+  cariDelegasiTerbuka,
+  hentikanUntukNomor,
+  tafsirBalasan,
+  tandaiSelesai,
+  kabariDirektur,
+} from "@/lib/delegation"
+import { runDelegationAgent } from "@/lib/delegation-agent"
 import { sapaanOf } from "@/lib/sapaan"
 import { findPrivateSessionOwner, outgoingSessionId, SHARED_SESSION_ID } from "@/lib/wa-session"
 import { normalizePhoneNumber, sendWhatsappMessage } from "@/lib/wahub"
@@ -60,6 +68,67 @@ async function findRegisteredSender(rawNumber: string) {
     where: { phoneNumber: { not: null }, approvedAt: { not: null } },
   })
   return candidates.find((u) => normalizePhoneNumber(u.phoneNumber!) === normalized)
+}
+
+/** Balasan dari penerima delegasi (mis. asisten direktur) — orang yang TIDAK punya akun di sini.
+ *
+ *  Tiga jalur, dan dua di antaranya tidak menyentuh Claude sama sekali supaya murah & bisa
+ *  diprediksi. Jalur "ngobrol" memakai agen terkurung tanpa tool apapun (lihat
+ *  lib/delegation-agent.ts) — penerima tidak boleh bisa menggerakkan data direktur lewat Naya.
+ *
+ *  Mengembalikan null kalau nomor ini memang bukan siapa-siapa, supaya pemanggilnya bisa
+ *  mendiamkannya seperti biasa. */
+async function tanganiBalasanDelegasi(digits: string, teks: string, replySession: string) {
+  const terbuka = await cariDelegasiTerbuka(digits)
+  if (terbuka.length === 0) return null
+
+  const maksud = tafsirBalasan(teks)
+
+  if (maksud === "stop") {
+    const jumlah = await hentikanUntukNomor(digits)
+    await sendWhatsappMessage(digits, "Oke, aku berhenti kirim pesan ya. Maaf sudah mengganggu 🙏", replySession)
+    return { handled: true, delegasi: "opted out", jumlah }
+  }
+
+  // Kalau satu orang dititipi beberapa pekerjaan sekaligus, "sudah" jadi ambigu — tanya dulu
+  // daripada menutup pekerjaan yang salah.
+  if (terbuka.length > 1 && maksud !== "ngobrol") {
+    const daftar = terbuka.map((d, i) => `${i + 1}. ${d.title}`).join("\n")
+    await sendWhatsappMessage(digits, `Yang mana ya maksudnya?\n${daftar}\n\nBalas judulnya aja ya.`, replySession)
+    return { handled: true, delegasi: "ambigu", jumlah: terbuka.length }
+  }
+
+  const delegasi = terbuka[0]
+  await prisma.delegation.update({ where: { id: delegasi.id }, data: { lastReplyAt: new Date() } })
+
+  if (maksud === "selesai") {
+    await tandaiSelesai(delegasi.id)
+    await sendWhatsappMessage(digits, `Siap, makasih ${delegasi.contactName}! Sudah aku teruskan ke ${sapaanOf(delegasi.user)} ya 🙌`, replySession)
+    return { handled: true, delegasi: "selesai" }
+  }
+
+  if (maksud === "belum") {
+    await sendWhatsappMessage(digits, "Oke, nggak apa-apa. Nanti aku tanya lagi ya 👌", replySession)
+    return { handled: true, delegasi: "belum" }
+  }
+
+  // Di luar pola: ajak ngobrol, tapi dengan agen yang tidak punya akses ke apapun.
+  const hasil = await runDelegationAgent({
+    ownerId: delegasi.userId,
+    judulPekerjaan: delegasi.title,
+    namaPenerima: delegasi.contactName,
+    pesanPenerima: teks,
+  })
+
+  await sendWhatsappMessage(digits, hasil.balasan, replySession)
+  if (hasil.selesai) await tandaiSelesai(delegasi.id)
+  if (hasil.perluDiteruskan) {
+    await kabariDirektur(
+      delegasi,
+      `💬 ${sapaanOf(delegasi.user)}, ada kabar dari ${delegasi.contactName} soal "${delegasi.title}":\n${hasil.perluDiteruskan}`
+    )
+  }
+  return { handled: true, delegasi: hasil.selesai ? "selesai lewat obrolan" : "diobrolkan" }
 }
 
 export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
@@ -133,11 +202,21 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   // terisi = nomor pribadi milik satu direktur.
   const sessionOwner = await findPrivateSessionOwner(payload.sessionId)
 
+  // Balas lewat sesi yang SAMA dengan tempat pesannya masuk, supaya balasan Naya selalu datang
+  // dari nomor yang barusan dia chat — bukan tiba-tiba dari nomor lain. Ditentukan lebih awal
+  // karena jalur delegasi (nomor tak terdaftar) juga membalas.
+  const replySession = sessionOwner ? outgoingSessionId(sessionOwner) : SHARED_SESSION_ID
+
   const digits = message.senderNumber || message.from.replace(/@.*$/, "")
   const sender = await findRegisteredSender(digits)
 
-  // Nomor tidak dikenal: diam saja, jangan dibalas apapun (hindari spam/bot-fishing & hemat kuota WA).
+  // Nomor tak terdaftar TAPI sedang dititipi pekerjaan oleh seorang direktur — satu-satunya
+  // pengecualian yang boleh dilayani. Lingkupnya sengaja sesempit mungkin: dia cuma bisa
+  // menjawab soal pekerjaannya sendiri, tidak bisa menyentuh data direktur apapun.
   if (!sender) {
+    const hasil = await tanganiBalasanDelegasi(digits, message.body.trim(), replySession)
+    if (hasil) return hasil
+
     console.log("[whatsapp webhook] skip: nomor tak terdaftar, digits=", digits)
     return { skipped: "unregistered number" }
   }
@@ -156,10 +235,6 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
     console.log("[whatsapp webhook] skip: pengirim bukan anggota workspace pemilik sesi ini")
     return { skipped: "sender not in this session's workspace" }
   }
-
-  // Balas lewat sesi yang SAMA dengan tempat pesannya masuk, supaya balasan Naya selalu datang
-  // dari nomor yang barusan dia chat — bukan tiba-tiba dari nomor lain.
-  const replySession = sessionOwner ? outgoingSessionId(sessionOwner) : SHARED_SESSION_ID
 
   const motivationShortcut = parseMotivationShortcut(message.body.trim())
   if (motivationShortcut) {

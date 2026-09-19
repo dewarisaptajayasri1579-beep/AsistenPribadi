@@ -3,6 +3,8 @@ import type Anthropic from "@anthropic-ai/sdk"
 import { formatJakartaTime, jakartaRangeFromToday, jakartaTodayDateIso, jakartaTodayRange, parseJakartaDateIso } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
 import { materializeOccurrences, RECURRING_HORIZON_WEEKS } from "@/lib/recurring-schedule"
+import { kirimKePenerima, pesanPerkenalan } from "@/lib/delegation"
+import { sapaanOf } from "@/lib/sapaan"
 import { getStockPrice } from "@/lib/stock-price"
 
 export const toolDefinitions: Anthropic.Tool[] = [
@@ -189,6 +191,27 @@ export const toolDefinitions: Anthropic.Tool[] = [
         days: { type: "number", description: "Jumlah hari ke depan dari hari ini, default 7, maksimal 30" },
       },
     },
+  },
+  {
+    name: "delegate_task",
+    description:
+      "Menitipkan pekerjaan ke ORANG LAIN lewat WhatsApp (mis. asisten atau anggota tim direktur) lalu menindaklanjutinya otomatis: Naya langsung mengabari orangnya, mengingatkan tiap pagi & sore, dan melapor balik ke direktur begitu orang itu bilang sudah selesai. Pakai ini kalau direktur bilang seperti 'ini nomor WA tim saya si Novi 0812..., tolong minta dia siapkan X' atau 'titip ke Novi ya'. Nomor boleh dikosongkan kalau orang yang sama pernah ditugasi sebelumnya — nomornya diambil dari riwayat.",
+    input_schema: {
+      type: "object",
+      properties: {
+        contactName: { type: "string", description: "Nama orang yang dititipi, mis. 'Novi'" },
+        contactPhone: { type: "string", description: "Nomor WhatsApp-nya (08... atau 62...). Boleh dikosongkan kalau orang ini pernah ditugasi sebelumnya." },
+        title: { type: "string", description: "Pekerjaan yang dititipkan, ditulis jelas dari sudut pandang orang yang mengerjakan" },
+        notes: { type: "string", description: "Keterangan tambahan, opsional" },
+      },
+      required: ["contactName", "title"],
+    },
+  },
+  {
+    name: "get_delegations",
+    description:
+      "Melihat pekerjaan yang sedang dititipkan ke orang lain beserta statusnya (menunggu/selesai) dan sudah berapa kali diingatkan. Pakai ini kalau direktur tanya 'Novi udah selesai belum?', 'apa aja yang lagi saya titipkan?', atau sebelum menitipkan ulang ke orang yang sama.",
+    input_schema: { type: "object", properties: {} },
   },
   {
     name: "create_follow_up",
@@ -581,6 +604,72 @@ async function getUpcomingAgenda(ctx: ToolContext, input: any) {
   return { rangeDays: days, schedules: withScheduleLabels(schedules), tasks }
 }
 
+/** Titipkan pekerjaan ke orang luar + langsung kabari orangnya. Pesan perkenalannya dikirim di
+ *  sini (bukan menunggu cron) supaya penerima tahu duduk perkaranya sebelum diingatkan. */
+async function delegateTask(ctx: ToolContext, input: any) {
+  const owner = await prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } })
+
+  // Nomor boleh dikosongkan kalau orang yang sama pernah ditugasi — supaya direktur tidak perlu
+  // mengetik ulang nomornya tiap kali menitipkan pekerjaan baru.
+  let phone: string | undefined = typeof input.contactPhone === "string" ? input.contactPhone.trim() : undefined
+  if (!phone) {
+    const sebelumnya = await prisma.delegation.findFirst({
+      where: { userId: ctx.userId, contactName: { equals: input.contactName, mode: "insensitive" } },
+      orderBy: { createdAt: "desc" },
+    })
+    if (!sebelumnya) {
+      return { created: false, error: `Nomor WhatsApp ${input.contactName} belum pernah dicatat — tanyakan dulu ke direktur.` }
+    }
+    phone = sebelumnya.contactPhone
+  }
+
+  // Orang yang pernah minta berhenti tidak boleh dikirimi lagi, sekalipun oleh direktur yang sama.
+  const pernahStop = await prisma.delegation.findFirst({
+    where: { contactPhone: phone, optedOut: true },
+  })
+  if (pernahStop) {
+    return { created: false, error: `${input.contactName} pernah membalas STOP, jadi tidak bisa dikirimi pesan otomatis lagi. Hubungi langsung ya.` }
+  }
+
+  const delegasi = await prisma.delegation.create({
+    data: {
+      userId: ctx.userId,
+      contactName: input.contactName,
+      contactPhone: phone,
+      title: input.title,
+      notes: input.notes ?? null,
+    },
+    include: { user: true },
+  })
+
+  try {
+    await kirimKePenerima(delegasi, pesanPerkenalan(delegasi, sapaanOf(owner)))
+  } catch (error) {
+    console.error("[delegasi] gagal mengirim perkenalan:", error)
+    return { created: true, delegasi, terkirim: false, catatan: "Tersimpan, tapi WhatsApp ke orangnya gagal terkirim." }
+  }
+
+  return { created: true, delegasi, terkirim: true, diingatkan: "tiap hari jam 08:00 & 15:00 WIB" }
+}
+
+async function getDelegations(ctx: ToolContext) {
+  const delegasi = await prisma.delegation.findMany({
+    where: { userId: ctx.userId },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  })
+  return {
+    delegasi: delegasi.map((d) => ({
+      id: d.id,
+      kepada: d.contactName,
+      pekerjaan: d.title,
+      status: d.optedOut ? "dihentikan (orangnya balas STOP)" : d.status,
+      sudahDiingatkan: d.remindedCount,
+      terakhirDibalas: d.lastReplyAt,
+    })),
+  }
+}
+
 async function createFollowUp(ctx: ToolContext, input: any) {
   const followUp = await prisma.followUp.create({
     data: {
@@ -824,6 +913,10 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getAllOpenWork(ctx)
     case "get_upcoming_agenda":
       return getUpcomingAgenda(ctx, input)
+    case "delegate_task":
+      return delegateTask(ctx, input)
+    case "get_delegations":
+      return getDelegations(ctx)
     case "create_follow_up":
       return createFollowUp(ctx, input)
     case "get_follow_ups":

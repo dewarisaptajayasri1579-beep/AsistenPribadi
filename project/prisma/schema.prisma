@@ -66,6 +66,7 @@ model User {
   stockWatches           StockWatch[]
   motivationMessages     MotivationMessage[]
   transactions           Transaction[]
+  delegations            Delegation[]
 
   @@map("users")
 }
@@ -177,6 +178,37 @@ model FollowUp {
   user          User      @relation(fields: [userId], references: [id])
 
   @@map("follow_ups")
+}
+
+/// Pekerjaan yang didelegasikan direktur ke orang LUAR (mis. asistennya) lewat WhatsApp.
+/// Bedanya dengan FollowUp: FollowUp cuma mencatat nama orangnya dan tidak bisa mengirim apa-apa;
+/// ini menyimpan nomornya dan menjalankan lingkaran penuh — kabari orangnya, ingatkan tiap pagi,
+/// lalu laporkan balik ke direktur begitu selesai.
+///
+/// Penerimanya TIDAK PERNAH mendaftar ke aplikasi ini. Karena itu ada optedOut (balas STOP =
+/// berhenti selamanya) dan batas pengingat: mengejar orang tanpa batas adalah cara tercepat
+/// nomor WhatsApp dilaporkan sebagai spam lalu diblokir.
+model Delegation {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id")
+  contactName    String    @map("contact_name")
+  /// Disimpan apa adanya seperti yang diketik direktur; dinormalisasi saat dicocokkan.
+  contactPhone   String    @map("contact_phone")
+  title          String
+  notes          String?
+  /// menunggu | selesai | dihentikan
+  status         String    @default("menunggu")
+  remindedCount  Int       @default(0) @map("reminded_count")
+  lastRemindedAt DateTime? @map("last_reminded_at")
+  lastReplyAt    DateTime? @map("last_reply_at")
+  /// Penerima membalas STOP — jangan pernah dikirimi lagi, untuk delegasi ini maupun berikutnya.
+  optedOut       Boolean   @default(false) @map("opted_out")
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  user           User      @relation(fields: [userId], references: [id])
+
+  @@index([contactPhone])
+  @@map("delegations")
 }
 
 model AgentRun {

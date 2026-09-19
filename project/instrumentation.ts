@@ -14,6 +14,7 @@ export async function register() {
   const { runStockWatchCheck } = await import("@/lib/cron/stock-watch")
   const { runMotivationMessage } = await import("@/lib/cron/motivation-message")
   const { runGombalMessage } = await import("@/lib/cron/gombal-message")
+  const { runDelegationReminders } = await import("@/lib/cron/delegation-reminders")
   const { registerWahubWebhook } = await import("@/lib/wahub")
 
   // Daftarkan ulang webhook WAHUB pakai env var yang aktif sekarang, tiap kali server start —
@@ -101,7 +102,17 @@ export async function register() {
     { timezone: "Asia/Jakarta" }
   )
 
+  // Tanya progres ke orang yang dititipi pekerjaan, 2x sehari. Jamnya sengaja di jam kerja —
+  // mengirim pesan otomatis ke orang luar di luar jam wajar memperbesar peluang dilaporkan spam.
+  cron.schedule(
+    "0 8,15 * * *",
+    () => {
+      runDelegationReminders().catch((e) => console.error("[cron] delegation-reminders gagal:", e))
+    },
+    { timezone: "Asia/Jakarta" }
+  )
+
   console.log(
-    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00), cek harga saham (15 menit, jam bursa), pesan motivasi (tiap 3 jam 06:00-21:00), gombalan Naya (acak 4-6x/hari, 07:00-22:00) WIB"
+    "[cron] Terdaftar: reminder jadwal (5 menit), checkin jadwal selesai (5 menit), briefing pagi (07:00), evaluasi malam (20:00), top-up jadwal rutin (Senin 01:00), cek harga saham (15 menit, jam bursa), pesan motivasi (tiap 3 jam 06:00-21:00), gombalan Naya (acak 4-6x/hari, 07:00-22:00), pengingat delegasi (08:00 & 15:00) WIB"
   )
 }
