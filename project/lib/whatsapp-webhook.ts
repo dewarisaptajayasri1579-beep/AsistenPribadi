@@ -78,8 +78,16 @@ async function findRegisteredSender(rawNumber: string) {
  *
  *  Mengembalikan null kalau nomor ini memang bukan siapa-siapa, supaya pemanggilnya bisa
  *  mendiamkannya seperti biasa. */
-async function tanganiBalasanDelegasi(digits: string, teks: string, replySession: string) {
-  const terbuka = await cariDelegasiTerbuka(digits)
+async function tanganiBalasanDelegasi(
+  digits: string,
+  teks: string,
+  replySession: string,
+  /** Kalau diisi, hanya delegasi dari direktur INI yang dipertimbangkan — dipakai saat pesannya
+   *  masuk lewat sesi pribadi seseorang, supaya balasan tidak nyasar ke delegasi direktur lain. */
+  batasiKeDirekturId?: string
+) {
+  const semua = await cariDelegasiTerbuka(digits)
+  const terbuka = batasiKeDirekturId ? semua.filter((d) => d.userId === batasiKeDirekturId) : semua
   if (terbuka.length === 0) return null
 
   const maksud = tafsirBalasan(teks)
@@ -232,6 +240,16 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   // kebetulan terdaftar tetap ditolak — kalau tidak, siapapun yang tahu nomor asisten pribadinya
   // bisa memerintah Naya lewat sana, dan balasannya terkirim dari nomor milik orang lain.
   if (sessionOwner && sessionOwner.id !== owner.id) {
+    // ...KECUALI kalau orang ini memang sedang ditunggu jawabannya oleh pemilik sesi. Seorang
+    // direktur bisa menitipkan pekerjaan ke direktur lain; balasannya masuk lewat sesi si
+    // pemberi tugas, dan tanpa pengecualian ini ia hilang tanpa jejak — pengirimnya tidak dapat
+    // respons apapun dan delegasinya menggantung selamanya.
+    //
+    // Tidak ada ambiguitas di sini: Naya milik si pengirim ada di NOMOR LAIN, jadi pesan yang
+    // sampai ke sesi ini tidak mungkin ditujukan untuk workspace-nya sendiri.
+    const hasil = await tanganiBalasanDelegasi(digits, message.body.trim(), replySession, sessionOwner.id)
+    if (hasil) return hasil
+
     console.log("[whatsapp webhook] skip: pengirim bukan anggota workspace pemilik sesi ini")
     return { skipped: "sender not in this session's workspace" }
   }

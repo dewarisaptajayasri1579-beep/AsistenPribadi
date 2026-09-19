@@ -29,11 +29,13 @@ order by created_at;
 | 3 | Jadwal kembar tidak menggantung setelah ditandai selesai | Pak Alfan | 15/09 → masih ditanya lagi 17/09 | ✅ `48d5435` |
 | 4 | Gombalan bisa dimatikan | (ditemukan saat audit) | Terkirim 4-6x/hari tanpa pernah ditawari | ✅ `9ec2c04` — default mati untuk akun baru |
 | 5 | Pertanyaan "kerjaan yang belum selesai" menjawab seluruh tanggungan | Mas Ony | Hanya menjawab Task, follow-up & jadwal terlewat | ✅ `a6ec364` — tool `get_all_open_work` |
+| 6 | Titip pekerjaan ke orang luar, diingatkan 2x sehari, lapor balik saat selesai | Pak Alfan (lewat Mas Ony) | Lingkaran penuh belum ada; balasan orang luar didiamkan | ✅ `cfeb372` — model `Delegation` + agen terkurung |
 
 ## Belum dikerjakan
 
 | # | Permintaan | Asal | Kenapa penting | Perkiraan |
 |---|---|---|---|---|
+| 11 | **Delegasi ke sesama direktur lewat nomor bersama** | Trial 19/09 | Kalau penerimanya juga direktur terdaftar DAN balasannya masuk lewat nomor Naya bersama, kata "sudah" jadi ambigu: bisa menjawab check-in jadwalnya sendiri, bisa menjawab delegasi. Kasus sesi pribadi sudah diperbaiki; yang ini perlu keputusan | ~45 menit |
 | 6 | **Cek bentrok saat mengubah jadwal** | Celah dari #2 | `create_schedule` menolak jadwal bentrok, `update_schedule` tidak — memindahkan acara ke jam yang sudah terisi tidak diperingatkan. Perlu mengecualikan jadwal itu sendiri dari pengecekan, kalau tidak ia bentrok dengan versi lamanya | ~15 menit |
 | 7 | **Pemantau sesi WhatsApp** | Mas Ony | Nomor bersama mati seminggu lebih tanpa ada yang tahu sampai dicek manual. Cek `/api/sessions/status` berkala, kabari kalau bukan `READY` | ~30 menit |
 | 8 | **Turunkan volume pesan motivasi** | Pencegahan blokir | Motivasi masih 6x/hari (06-21, tiap 3 jam). Belum terasa karena belum ada direktur yang mengisi daftar motivasinya — akan langsung terasa begitu ada | ~5 menit |
