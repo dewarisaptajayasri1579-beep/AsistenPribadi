@@ -72,6 +72,24 @@ export const toolDefinitions: Anthropic.Tool[] = [
     },
   },
   {
+    name: "update_schedule",
+    description:
+      "MENGUBAH jadwal yang sudah ada — ganti jam, tanggal, judul, lokasi, catatan, atau jeda pengingatnya. INI yang dipakai kalau pengguna bilang 'jadwal X dirubah jadi ...', 'pindah ke jam ...', 'ganti lokasinya', dan sejenisnya. JANGAN membuat jadwal baru untuk perubahan — itu menyisakan jadwal lama sebagai duplikat yang terus ditanyakan ke pengguna berhari-hari kemudian. JANGAN pula minta persetujuan hapus: mengubah bukan menghapus, jadi tidak perlu konfirmasi ekstra kalau perubahannya sudah jelas. Cari ID-nya lewat get_upcoming_agenda / get_pending_schedule_checkins kalau belum tahu.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        title: { type: "string" },
+        startAt: { type: "string", description: "Waktu mulai baru, ISO 8601 dengan offset +07:00" },
+        endAt: { type: "string", description: "Waktu selesai baru, ISO 8601" },
+        location: { type: "string" },
+        notes: { type: "string" },
+        remindBeforeMinutes: { type: "number", description: "Jeda pengingat baru dalam MENIT" },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "create_recurring_schedule",
     description:
       "Membuat jadwal RUTIN/berulang mingguan (mis. 'tiap Senin & Kamis jam 9'). Otomatis bikin kejadian nyata untuk 12 minggu ke depan (terus di-top-up mingguan supaya tidak pernah habis) — jangan panggil create_schedule berkali-kali manual untuk pola berulang.",
@@ -600,6 +618,45 @@ async function getPendingScheduleCheckins(ctx: ToolContext) {
   return { pending: withScheduleLabels(pending) }
 }
 
+/** Ubah jadwal yang sudah ada. Sebelum tool ini ada, perubahan jadwal tidak punya jalur sama
+ *  sekali: AI hanya bisa membuat baru (menyisakan duplikat) atau menghapus lalu membuat (butuh
+ *  persetujuan hapus, sehingga ia bertanya berulang dan sering akhirnya tidak melakukan apa-apa). */
+async function updateSchedule(ctx: ToolContext, input: any) {
+  const sebelum = await prisma.schedule.findFirst({ where: { id: input.id, userId: ctx.userId } })
+  if (!sebelum) return { updated: false, error: "Jadwal tidak ditemukan" }
+
+  const data: Record<string, unknown> = {}
+  if (typeof input.title === "string") data.title = input.title
+  if (typeof input.location === "string") data.location = input.location
+  if (typeof input.notes === "string") data.notes = input.notes
+  if (typeof input.startAt === "string") data.startAt = new Date(input.startAt)
+  if (typeof input.endAt === "string") data.endAt = new Date(input.endAt)
+  if (
+    typeof input.remindBeforeMinutes === "number" &&
+    input.remindBeforeMinutes > 0 &&
+    input.remindBeforeMinutes <= 43200
+  ) {
+    data.remindBeforeMinutes = Math.round(input.remindBeforeMinutes)
+  }
+  // Waktunya digeser -> pengingat lamanya tidak relevan lagi. Tanpa ini, jadwal yang sudah
+  // terlanjur diingatkan lalu dipindah ke besok tidak akan pernah diingatkan lagi.
+  if (data.startAt) {
+    data.remindedAt = null
+    if (!data.endAt && sebelum.endAt) {
+      const durasi = sebelum.endAt.getTime() - sebelum.startAt.getTime()
+      data.endAt = new Date((data.startAt as Date).getTime() + durasi)
+    }
+  }
+
+  const schedule = await prisma.schedule.update({ where: { id: input.id }, data })
+  return {
+    updated: true,
+    schedule,
+    startAtLabel: `${formatJakartaTime(schedule.startAt)} WIB`,
+    endAtLabel: schedule.endAt ? `${formatJakartaTime(schedule.endAt)} WIB` : null,
+  }
+}
+
 async function completeSchedule(ctx: ToolContext, input: any) {
   const schedule = await prisma.schedule.update({
     where: { id: input.id, userId: ctx.userId },
@@ -749,6 +806,8 @@ export async function runTool(name: string, input: any, ctx: ToolContext) {
       return getRecurringSchedules(ctx)
     case "stop_recurring_schedule":
       return stopRecurringSchedule(ctx, input)
+    case "update_schedule":
+      return updateSchedule(ctx, input)
     case "delete_schedule":
       return deleteSchedule(ctx, input)
     case "delete_task":
