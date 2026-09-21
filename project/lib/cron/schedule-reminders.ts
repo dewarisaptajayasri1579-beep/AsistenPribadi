@@ -1,6 +1,7 @@
 import { getOwnerRecipients } from "@/lib/cron/recipients"
 import { formatJakartaTime } from "@/lib/datetime"
 import { prisma } from "@/lib/prisma"
+import { sapaanOf } from "@/lib/sapaan"
 import { sendPushToUser } from "@/lib/push"
 import { outgoingSessionId } from "@/lib/wa-session"
 import { sendWhatsappMessage } from "@/lib/wahub"
@@ -69,7 +70,7 @@ export async function runScheduleReminders() {
 
     const time = formatJakartaTime(schedule.startAt)
     const message = [
-      `⏰ Woy, ${leadLabel(schedule.startAt, now)} ada agenda nih~`,
+      `⏰ Permisi ${sapaanOf(recipient)}, ${leadLabel(schedule.startAt, now)} ada agenda:`,
       ``,
       `${schedule.title}`,
       `Jam ${time} WIB${schedule.location ? ` di ${schedule.location}` : ""}`,

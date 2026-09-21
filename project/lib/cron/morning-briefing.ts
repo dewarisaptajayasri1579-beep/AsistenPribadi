@@ -51,10 +51,10 @@ async function sendMorningBriefingFor(ownerId: string) {
   const data = await getDashboardData(ownerId)
   const ongoingTasks = await getOngoingMultiDayTasks(ownerId)
 
-  const lines = [`Pagi ${sapaan}! ☀️ Naya rangkumin agenda hari ini ya~`, ``]
+  const lines = [`Selamat pagi ${sapaan} ☀️ Berikut agenda hari ini:`, ``]
 
   if (data.agenda.length === 0) {
-    lines.push("Agenda: kosong hari ini, santai dulu~")
+    lines.push("Agenda: kosong hari ini.")
   } else {
     lines.push("Agenda:")
     for (const item of data.agenda) {
@@ -64,7 +64,7 @@ async function sendMorningBriefingFor(ownerId: string) {
 
   lines.push("")
   if (data.priorities.length === 0) {
-    lines.push("Prioritas: aman, gak ada yang urgent hari ini~")
+    lines.push("Prioritas: tidak ada yang mendesak hari ini.")
   } else {
     lines.push("Prioritas:")
     data.priorities.forEach((p, i) => lines.push(`${i + 1}. ${p.title}`))
@@ -91,7 +91,7 @@ async function sendMorningBriefingFor(ownerId: string) {
   }
 
   lines.push("")
-  lines.push(`Semangat hari ini, ${sapaan}! 💪`)
+  lines.push(`Selamat beraktivitas, ${sapaan}.`)
 
   const message = lines.join("\n")
 

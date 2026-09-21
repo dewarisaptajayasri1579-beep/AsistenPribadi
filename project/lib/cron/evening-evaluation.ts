@@ -26,15 +26,15 @@ async function sendEveningEvaluationFor(ownerId: string) {
 
   const total = data.stats.doneToday + data.stats.undoneCount
   const lines = [
-    `📋 Malem ${sapaanOf(recipient)}~ evaluasi hari ini nih dari Naya:`,
+    `📋 Selamat malam ${sapaanOf(recipient)}, berikut evaluasi hari ini:`,
     ``,
     total === 0
-      ? "Gak ada tugas tercatat hari ini~"
-      : `Dari ${total} tugas hari ini: ${data.stats.doneToday} udah kelar, ${data.stats.undoneCount} masih belum.`,
+      ? "Tidak ada tugas tercatat hari ini."
+      : `Dari ${total} tugas hari ini: ${data.stats.doneToday} selesai, ${data.stats.undoneCount} belum.`,
   ]
 
   if (data.stats.highPriorityCount > 0) {
-    lines.push(`Masih ada ${data.stats.highPriorityCount} tugas prioritas tinggi yang belum kelar lho~`)
+    lines.push(`Masih ada ${data.stats.highPriorityCount} tugas prioritas tinggi yang belum selesai.`)
   }
 
   if (data.overdueFollowUps.length > 0) {
@@ -50,7 +50,7 @@ async function sendEveningEvaluationFor(ownerId: string) {
   }
 
   lines.push("")
-  lines.push("Yang belum kelar bisa dilanjut besok ya, tinggal cek menu Jadwal & Tugas aja~")
+  lines.push("Yang belum selesai bisa dilanjutkan besok. Selamat beristirahat.")
 
   const message = lines.join("\n")
 
