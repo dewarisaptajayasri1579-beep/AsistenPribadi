@@ -50,6 +50,12 @@ interface WahubIncomingMessage {
   hasMedia?: boolean
   mediaBase64?: string | null
   mimetype?: string | null
+  /** Isi pesan yang sedang DIBALAS, kalau pesan ini sebuah reply (null kalau bukan). WhatsApp
+   *  menaruhnya di contextInfo, terpisah dari body — tanpa ini Naya cuma menerima kalimat
+   *  telanjang seperti "ini sudah selesai" tanpa tahu "ini" merujuk ke apa, padahal pengirimnya
+   *  merasa sudah jelas karena dia mengutip. Diteruskan WAHUB sejak commit quoted-reply. */
+  quotedBody?: string | null
+  quotedMessageId?: string | null
 }
 
 interface WahubWebhookPayload {
@@ -280,10 +286,18 @@ export async function handleWhatsappWebhook(payload: WahubWebhookPayload) {
   // Placeholder dari WAHUB kalau foto dikirim tanpa caption — tidak berguna dikirim apa adanya
   // ke AI, ganti dengan instruksi baca nota yang jelas.
   const bodyTrimmed = message.body.trim()
-  const command =
+  const perintahDasar =
     message.mediaBase64 && bodyTrimmed === "[MEDIA Image]"
       ? "Tolong baca foto ini. Kalau ini nota/struk belanja, ekstrak & catat sebagai transaksi (record_transaction) sesuai isinya."
       : bodyTrimmed
+
+  // Pesan yang dikutip disisipkan sebagai konteks, bukan digabung jadi satu kalimat — supaya AI
+  // tahu mana ucapan pengguna dan mana kutipannya. Dipotong karena briefing pagi bisa panjang
+  // sekali dan yang dibutuhkan cuma bagian yang ditunjuk.
+  const kutipan = message.quotedBody?.trim()
+  const command = kutipan
+    ? `Pengguna membalas pesan ini:\n"""\n${kutipan.slice(0, 900)}\n"""\n\nBalasannya: ${perintahDasar}`
+    : perintahDasar
 
   const { reply, messages } = await runAgent({
     ownerId: owner.id,
