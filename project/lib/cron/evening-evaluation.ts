@@ -24,17 +24,23 @@ async function sendEveningEvaluationFor(ownerId: string) {
 
   const data = await getDailyReportData(ownerId)
 
-  const total = data.stats.doneToday + data.stats.undoneCount
-  const lines = [
-    `📋 Selamat malam ${sapaanOf(recipient)}, berikut evaluasi hari ini:`,
-    ``,
-    total === 0
-      ? "Tidak ada tugas tercatat hari ini."
-      : `Dari ${total} tugas hari ini: ${data.stats.doneToday} selesai, ${data.stats.undoneCount} belum.`,
-  ]
+  const lines = [`📋 Selamat malam ${sapaanOf(recipient)}, berikut evaluasi hari ini:`, ``]
 
-  if (data.stats.highPriorityCount > 0) {
-    lines.push(`Masih ada ${data.stats.highPriorityCount} tugas prioritas tinggi yang belum selesai.`)
+  // Agenda dan tugas dilaporkan TERPISAH: sebagian besar pekerjaan harian tersimpan sebagai
+  // jadwal, dan menggabungkannya membuat "0 dari 1 selesai" muncul di hari yang sebenarnya
+  // produktif.
+  if (data.stats.agendaCount > 0) {
+    lines.push(`Agenda: ${data.stats.agendaSelesai} dari ${data.stats.agendaCount} sudah ditandai selesai.`)
+  }
+
+  if (data.stats.doneToday > 0 || data.stats.undoneTodayCount > 0) {
+    lines.push(
+      `Tugas: ${data.stats.doneToday} selesai hari ini, ${data.stats.undoneTodayCount} masih menunggu.`
+    )
+  }
+
+  if (data.stats.agendaCount === 0 && data.stats.doneToday === 0 && data.stats.undoneTodayCount === 0) {
+    lines.push("Tidak ada agenda maupun tugas yang jatuh tempo hari ini.")
   }
 
   if (data.overdueFollowUps.length > 0) {
@@ -49,8 +55,19 @@ async function sendEveningEvaluationFor(ownerId: string) {
     data.pendingFollowUps.forEach((f) => lines.push(`- ${f}`))
   }
 
+  // Penutupnya ikut keadaan — "yang belum selesai bisa dilanjutkan besok" terdengar aneh di hari
+  // yang justru semuanya tuntas.
+  const adaTertunggak =
+    data.stats.undoneTodayCount > 0 ||
+    data.stats.agendaSelesai < data.stats.agendaCount ||
+    data.overdueFollowUps.length > 0
+
   lines.push("")
-  lines.push("Yang belum selesai bisa dilanjutkan besok. Selamat beristirahat.")
+  lines.push(
+    adaTertunggak
+      ? "Yang belum selesai bisa dilanjutkan besok. Selamat beristirahat."
+      : "Semuanya tuntas hari ini. Selamat beristirahat."
+  )
 
   const message = lines.join("\n")
 

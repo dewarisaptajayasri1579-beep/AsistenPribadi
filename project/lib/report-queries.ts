@@ -50,11 +50,23 @@ export async function getDailyReportData(userId: string) {
     status: scheduleStatus(s.startAt, s.endAt, now),
   }))
 
+  // Agenda hari ini yang sudah/belum ditandai selesai. Sebelumnya evaluasi malam sama sekali
+  // tidak menghitung jadwal — padahal sebagian besar pekerjaan harian tersimpan sebagai JADWAL,
+  // bukan Task. Akibatnya direktur yang menyelesaikan agendanya tetap dilaporkan "0 selesai".
+  const agendaSelesai = todaySchedules.filter((s) => s.status === "done").length
+
+  // Tugas yang relevan untuk HARI INI saja: jatuh tempo hari ini atau sudah terlambat. Tanpa
+  // batas ini, tugas yang deadline-nya minggu depan ikut dilaporkan sebagai "belum selesai hari
+  // ini" — membuat laporan terasa salah padahal tidak ada yang tertunggak.
+  const undoneTodayCount = undoneTasks.filter((t) => t.dueDate && t.dueDate < end).length
+
   return {
     stats: {
       agendaCount: todaySchedules.length,
+      agendaSelesai,
       doneToday,
       undoneCount: undoneTasks.length,
+      undoneTodayCount,
       highPriorityCount: highPriorityTasks.length,
     },
     activities,
