@@ -178,7 +178,7 @@ export const toolDefinitions: Anthropic.Tool[] = [
   {
     name: "get_all_open_work",
     description:
-      "Mengambil SELURUH pekerjaan yang belum kelar dalam SATU panggilan: tugas (Task) yang belum selesai, follow-up yang masih terbuka, DAN jadwal yang sudah lewat tapi belum ditandai selesai. WAJIB pakai ini — bukan get_open_tasks — untuk pertanyaan umum seperti 'kerjaanku yang belum selesai apa', 'apa aja yang masih nunggak', 'PR-ku apa', 'aku masih ada tanggungan apa', 'ada yang belum kelar nggak'. get_open_tasks cuma mengembalikan Task saja, jadi kalau dipakai untuk pertanyaan umum, follow-up & jadwal tertunda pengguna akan hilang dari jawaban.",
+      "Mengambil SELURUH pekerjaan yang belum kelar dalam SATU panggilan: tugas (Task) yang belum selesai, follow-up yang masih terbuka, jadwal yang sudah lewat tapi belum ditandai selesai, DAN pekerjaan yang dititipkan ke orang lain tapi belum ada kabar selesai. WAJIB pakai ini — bukan get_open_tasks — untuk pertanyaan umum seperti 'kerjaanku yang belum selesai apa', 'apa aja yang masih nunggak', 'PR-ku apa', 'aku masih ada tanggungan apa', 'ada yang belum kelar nggak'. get_open_tasks cuma mengembalikan Task saja, jadi kalau dipakai untuk pertanyaan umum, follow-up & jadwal tertunda pengguna akan hilang dari jawaban.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -549,7 +549,7 @@ async function getAllOpenWork(ctx: ToolContext) {
   const { start } = jakartaTodayRange()
   const now = new Date()
 
-  const [tasks, followUps, schedules] = await Promise.all([
+  const [tasks, followUps, schedules, delegasi] = await Promise.all([
     prisma.task.findMany({
       where: { userId: ctx.userId, status: { notIn: ["done"] } },
       orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
@@ -575,14 +575,25 @@ async function getAllOpenWork(ctx: ToolContext) {
       orderBy: { startAt: "desc" },
       take: 15,
     }),
+    // Jenis tanggungan keempat: pekerjaan yang sudah dititipkan ke orang lain tapi orangnya
+    // belum mengabari selesai. Tetap "belum kelar" dari sudut pandang direktur.
+    prisma.delegation.findMany({
+      where: { userId: ctx.userId, status: "menunggu", optedOut: false },
+      orderBy: { createdAt: "asc" },
+    }),
   ])
 
   return {
     tugas: tasks.map((t) => ({ ...t, terlambat: !!t.dueDate && t.dueDate < start })),
     followUps: followUps.map((f) => ({ ...f, terlambat: !!f.dueDate && f.dueDate < start })),
     jadwalBelumDitutup: withScheduleLabels(schedules),
+    dititipkanKeOrangLain: delegasi.map((d) => ({
+      judul: d.title,
+      kepada: d.contactName,
+      sudahDiingatkan: d.remindedCount,
+    })),
     catatanJadwal: `Hanya jadwal sekali-jalan (bukan jadwal rutin) dari ${STALE_SCHEDULE_WINDOW_DAYS} hari terakhir yang belum ditandai selesai, maks 15 terbaru.`,
-    totalItem: tasks.length + followUps.length + schedules.length,
+    totalItem: tasks.length + followUps.length + schedules.length + delegasi.length,
   }
 }
 

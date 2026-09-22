@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 export async function getDashboardData(userId: string) {
   const { start, end } = jakartaTodayRange()
 
-  const [todaySchedules, undoneTasks, highPriorityTasks, doneTodayCount, overdueFollowUps, pendingFollowUps] =
+  const [todaySchedules, undoneTasks, highPriorityTasks, doneTodayCount, overdueFollowUps, pendingFollowUps, delegasiTerbuka] =
     await Promise.all([
       prisma.schedule.findMany({
         where: { userId, startAt: { gte: start, lt: end }, status: { notIn: ["cancelled", "done"] } },
@@ -29,6 +29,11 @@ export async function getDashboardData(userId: string) {
       // jadi dimunculkan terpisah supaya tidak diam-diam terlupakan.
       prisma.followUp.findMany({
         where: { userId, status: "open", dueDate: null },
+      }),
+      // Jenis pekerjaan keempat, selain tugas/jadwal/follow-up: yang dititipkan ke orang lain.
+      prisma.delegation.findMany({
+        where: { userId, status: "menunggu", optedOut: false },
+        orderBy: { createdAt: "asc" },
       }),
     ])
 
@@ -58,6 +63,7 @@ export async function getDashboardData(userId: string) {
       highPriority: highPriorityTasks.length,
       overdueFollowUps: overdueFollowUps.map((f) => f.title),
       pendingFollowUps: pendingFollowUps.map((f) => f.title),
+      delegasi: delegasiTerbuka.map((d) => `${d.title} (${d.contactName})`),
     },
   }
 }

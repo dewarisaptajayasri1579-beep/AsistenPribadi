@@ -16,18 +16,19 @@ export async function getDailyReportData(userId: string) {
 
   const [
     todaySchedules,
-    doneToday,
+    doneTaskList,
     undoneTasks,
     highPriorityTasks,
     overdueFollowUps,
     pendingFollowUps,
     tomorrowSchedules,
+    delegasiTerbuka,
   ] = await Promise.all([
     prisma.schedule.findMany({
       where: { userId, startAt: { gte: start, lt: end }, status: { not: "cancelled" } },
       orderBy: { startAt: "asc" },
     }),
-    prisma.task.count({ where: { userId, status: "done", completedAt: { gte: start, lt: end } } }),
+    prisma.task.findMany({ where: { userId, status: "done", completedAt: { gte: start, lt: end } }, orderBy: { completedAt: "asc" } }),
     prisma.task.findMany({ where: { userId, status: { notIn: ["done"] } }, orderBy: { dueDate: "asc" } }),
     prisma.task.findMany({
       where: { userId, priority: "high", status: { notIn: ["done"] } },
@@ -40,6 +41,13 @@ export async function getDailyReportData(userId: string) {
     prisma.schedule.findMany({
       where: { userId, startAt: { gte: tomorrowStart, lt: tomorrowEnd }, status: { not: "cancelled" } },
       orderBy: { startAt: "asc" },
+    }),
+    // Pekerjaan yang dititipkan ke orang lain. Ini jenis pekerjaan KEEMPAT (selain tugas, jadwal,
+    // dan follow-up) dan sebelumnya tidak pernah masuk laporan manapun — direktur yang menitipkan
+    // pekerjaan tidak akan pernah melihatnya lagi di briefing atau evaluasi.
+    prisma.delegation.findMany({
+      where: { userId, status: "menunggu", optedOut: false },
+      orderBy: { createdAt: "asc" },
     }),
   ])
 
@@ -64,12 +72,19 @@ export async function getDailyReportData(userId: string) {
     stats: {
       agendaCount: todaySchedules.length,
       agendaSelesai,
-      doneToday,
+      doneToday: doneTaskList.length,
       undoneCount: undoneTasks.length,
       undoneTodayCount,
       highPriorityCount: highPriorityTasks.length,
     },
     activities,
+    // Judulnya ikut dibawa, bukan cuma jumlahnya — laporan yang hanya menyebut angka membuat
+    // pembacanya harus menebak item mana yang dimaksud.
+    agendaSelesaiList: todaySchedules.filter((s) => s.status === "done").map((s) => s.title),
+    agendaBelumList: todaySchedules.filter((s) => s.status !== "done").map((s) => s.title),
+    tugasSelesaiList: doneTaskList.map((t) => t.title),
+    tugasBelumList: undoneTasks.filter((t) => t.dueDate && t.dueDate < end).map((t) => t.title),
+    delegasi: delegasiTerbuka.map((d) => `${d.title} (${d.contactName})`),
     overdueFollowUps: overdueFollowUps.map((f) => f.title),
     pendingFollowUps: pendingFollowUps.map((f) => f.title),
     tomorrowFocus: {

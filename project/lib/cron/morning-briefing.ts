@@ -78,6 +78,12 @@ async function sendMorningBriefingFor(ownerId: string) {
     )
   }
 
+  if (data.report.delegasi.length > 0) {
+    lines.push("")
+    lines.push("Dititipkan ke orang lain, belum ada kabar:")
+    data.report.delegasi.forEach((d) => lines.push(`- ${d}`))
+  }
+
   if (data.report.overdueFollowUps.length > 0) {
     lines.push("")
     lines.push("Follow-up terlambat:")

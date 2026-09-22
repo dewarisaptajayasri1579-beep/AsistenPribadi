@@ -24,24 +24,28 @@ async function sendEveningEvaluationFor(ownerId: string) {
 
   const data = await getDailyReportData(ownerId)
 
-  const lines = [`📋 Selamat malam ${sapaanOf(recipient)}, berikut evaluasi hari ini:`, ``]
+  const lines = [`📋 Selamat malam ${sapaanOf(recipient)}, berikut evaluasi hari ini:`]
 
-  // Agenda dan tugas dilaporkan TERPISAH: sebagian besar pekerjaan harian tersimpan sebagai
-  // jadwal, dan menggabungkannya membuat "0 dari 1 selesai" muncul di hari yang sebenarnya
-  // produktif.
-  if (data.stats.agendaCount > 0) {
-    lines.push(`Agenda: ${data.stats.agendaSelesai} dari ${data.stats.agendaCount} sudah ditandai selesai.`)
+  // Disebutkan satu per satu, bukan cuma jumlahnya: laporan berupa angka saja membuat
+  // pembacanya harus menebak item mana yang dimaksud — dan itulah yang bikin laporan terasa
+  // salah walau angkanya benar.
+  const daftar = (judul: string, items: string[]) => {
+    if (items.length === 0) return
+    lines.push(``)
+    lines.push(judul)
+    items.forEach((t) => lines.push(`- ${t}`))
   }
 
-  if (data.stats.doneToday > 0 || data.stats.undoneTodayCount > 0) {
-    lines.push(
-      `Tugas: ${data.stats.doneToday} selesai hari ini, ${data.stats.undoneTodayCount} masih menunggu.`
-    )
-  }
+  daftar(`Agenda selesai (${data.agendaSelesaiList.length}):`, data.agendaSelesaiList)
+  daftar(`Agenda belum ditandai selesai (${data.agendaBelumList.length}):`, data.agendaBelumList)
+  daftar(`Tugas selesai hari ini (${data.tugasSelesaiList.length}):`, data.tugasSelesaiList)
+  daftar(`Tugas yang masih menunggu (${data.tugasBelumList.length}):`, data.tugasBelumList)
+  daftar(`Dititipkan ke orang lain, belum ada kabar (${data.delegasi.length}):`, data.delegasi)
 
-  if (data.stats.agendaCount === 0 && data.stats.doneToday === 0 && data.stats.undoneTodayCount === 0) {
-    lines.push("Tidak ada agenda maupun tugas yang jatuh tempo hari ini.")
-  }
+  const adaIsi =
+    data.agendaSelesaiList.length + data.agendaBelumList.length +
+    data.tugasSelesaiList.length + data.tugasBelumList.length + data.delegasi.length > 0
+  if (!adaIsi) lines.push("Tidak ada agenda maupun tugas yang jatuh tempo hari ini.")
 
   if (data.overdueFollowUps.length > 0) {
     lines.push("")
@@ -58,8 +62,8 @@ async function sendEveningEvaluationFor(ownerId: string) {
   // Penutupnya ikut keadaan — "yang belum selesai bisa dilanjutkan besok" terdengar aneh di hari
   // yang justru semuanya tuntas.
   const adaTertunggak =
-    data.stats.undoneTodayCount > 0 ||
-    data.stats.agendaSelesai < data.stats.agendaCount ||
+    data.tugasBelumList.length > 0 ||
+    data.agendaBelumList.length > 0 ||
     data.overdueFollowUps.length > 0
 
   lines.push("")
